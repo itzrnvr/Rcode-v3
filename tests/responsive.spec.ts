@@ -79,13 +79,19 @@ test("document never scrolls horizontally", async ({ page }) => {
 });
 
 test("left sidebar collapses and expands", async ({ page }, testInfo) => {
+  // The drawer collapses to width 0 on desktop and tablet (the One UI panel
+  // motion, with the content held at a fixed width inside), and slides
+  // off-canvas on a phone, where it keeps its width. Both states are marked
+  // with data-collapsed on the panel itself.
+  const collapsed = page.locator('.panel-sessions[data-collapsed="true"]');
+
   // Collapse state persists across runs; establish the expanded start the
   // test's first click assumes.
-  if (await page.locator(".panel-sessions.collapsed").count()) {
+  if (await collapsed.count()) {
     await toggleTo(
       page,
       page.getByRole("button", { name: "Toggle sidebar" }),
-      () => page.locator(".panel-sessions.collapsed").count().then(count => count === 0)
+      () => collapsed.count().then(count => count === 0)
     );
   }
 
@@ -93,36 +99,36 @@ test("left sidebar collapses and expands", async ({ page }, testInfo) => {
   await toggleTo(
     page,
     toggle,
-    () => page.locator(".panel-sessions.collapsed").count().then(count => count > 0)
+    () => collapsed.count().then(count => count > 0)
   );
+  await expect(collapsed).toHaveCount(1);
 
-  // Below 768px the sidebar is a drawer overlay that slides off-canvas, not the
-  // 52px rail the desktop build collapses to. Both are correct; asserting the
-  // rail on a phone would have hidden the real drawer behaviour.
   if (testInfo.project.name === "mobile") {
     const drawer = page.locator(".panel-sessions");
     await expect(drawer).toBeAttached();
-    const b = (await drawer.boundingBox())!;
-    expect(b.x + b.width, "drawer should be off-canvas").toBeLessThanOrEqual(1);
-  } else {
-    const rail = page.locator(".panel-sessions.collapsed");
-    await expect(rail).toBeVisible();
-    // The rail width animates (202px -> 52px over --duration-panel); an
-    // immediate boundingBox read lands on a mid-flight frame (~90px) and fails
-    // the bound. Poll until the transition settles - a rail that genuinely
-    // never reaches 52px still fails here, just after the window closes.
+    // The drawer keeps its width off-canvas, so its right edge is what has to
+    // clear the viewport, not its width.
     await expect
-      .poll(async () => (await rail.boundingBox())!.width, { timeout: 2_000 })
-      .toBeLessThanOrEqual(80);
+      .poll(async () => drawer.evaluate(el => el.getBoundingClientRect().right), { timeout: 2_000 })
+      .toBeLessThanOrEqual(1);
+  } else {
+    // The width animates to 0 and the panel then flips to visibility:hidden.
+    // Read the rect through evaluate() rather than boundingBox(): Playwright
+    // reports null for a hidden element, and the visibility flip lands before
+    // the width poll would otherwise settle.
+    await expect
+      .poll(async () => collapsed.evaluate(el => el.getBoundingClientRect().width), { timeout: 2_000 })
+      .toBeLessThanOrEqual(1);
+    await expect(collapsed).toBeHidden();
   }
 
   await toggleTo(
     page,
     page.getByRole("button", { name: "Toggle sidebar" }),
-    () => page.locator(".panel-sessions.collapsed").count().then(count => count === 0),
+    () => collapsed.count().then(count => count === 0),
     true
   );
-  await expect(page.locator(".panel-sessions.collapsed")).toHaveCount(0);
+  await expect(collapsed).toHaveCount(0);
 });
 
 /** Panel toggles persist to the shared dev database, and the write from a

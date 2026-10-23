@@ -13,7 +13,8 @@
     "test": "playwright test",
     "test:mobile": "playwright test --project=mobile",
     "test:responsive": "playwright test --project=tablet --project=mobile",
-    "test:ui": "playwright test --ui"
+    "test:ui": "playwright test --ui",
+    "test:unit": "node --test"
   },
   "dependencies": {
     "@base-ui/react": "1.8.0",

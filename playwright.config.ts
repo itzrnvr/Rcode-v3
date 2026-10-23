@@ -10,6 +10,11 @@ import { defineConfig, devices } from "@playwright/test";
  */
 export default defineConfig({
   testDir: "./tests",
+  // Only the Playwright specs. The *.test.ts files in this directory are
+  // node:test unit tests run by `node --test`, and Playwright's runner would
+  // otherwise try to load them as E2E specs - which fails on their import.meta
+  // usage and duplicates the run.
+  testMatch: "**/*.spec.ts",
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: 0,
