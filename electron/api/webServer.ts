@@ -124,7 +124,7 @@ async function handleInvoke(req: IncomingMessage, res: ServerResponse): Promise<
     sender: {
       isDestroyed: () => false,
       send: (eventChannel: string, ...args: unknown[]) => {
-        emitApiEvent(eventChannel, args);
+        emitApiEvent(eventChannel, ...args);
       },
     },
   };

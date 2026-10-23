@@ -7,8 +7,8 @@
  * work this project exists for requires exact control over the request shape
  * and a harness that does not change underneath a running evaluation.
  *
- * This file is the seam. It defines only what `ipc/chat.ts` consumes; there is
- * deliberately no implementation yet.
+ * This file is the seam. It defines only what `ipc/chat.ts` consumes; the
+ * implementation is `rcodeEngine` in `agent/loop.ts`.
  *
  * WHAT MOVED HERE FROM THE DELETED PI BACKEND, AND WHY IT IS NOT PI-SPECIFIC:
  *
@@ -36,6 +36,8 @@
  *   persisted turn and the trace stay plain text regardless of what a tool
  *   returns.
  */
+
+import { rcodeEngine } from "./loop";
 
 /** A canonical block from one completed assistant message. */
 export interface AssistantBlock {
@@ -129,20 +131,9 @@ export interface AgentEngine {
   compact(sessionId: string): Promise<string>;
 }
 
-export class EngineNotWiredError extends Error {
-  constructor() {
-    super(
-      "No agent engine is wired. Rcode's own agent loop is not implemented yet — " +
-        "implement AgentEngine in electron/agent/ and return it from getEngine().",
-    );
-    this.name = "EngineNotWiredError";
-  }
-}
-
 /**
- * The active engine. Throws until Rcode's own loop is implemented.
- * Replace this with the real implementation, not with a fallback backend.
+ * The active engine: Rcode's own loop, implemented in agent/loop.ts.
  */
 export function getEngine(): AgentEngine {
-  throw new EngineNotWiredError();
+  return rcodeEngine;
 }

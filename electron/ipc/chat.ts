@@ -20,8 +20,9 @@ import { getSettings } from "../db/settings";
 import { getProvider } from "../db/providers";
 import { buildSystemPrompt } from "../chat/systemPrompt";
 import { logTrace, readTrace } from "../agent/trace";
+import { createTools } from "../agent/tools";
+import { readCompactionRecord, resolveProjectDir, resolveRestrictedAllowedPaths } from "../agent/loop";
 import { getEngine, type AssistantBlock } from "../agent/engine";
-import { homedir } from "os";
 
 import type { AgentTurn, AgentTurnEvent, ChatRequest, ChatChunk, Settings, TurnUsage } from "../../src/types";
 
@@ -68,10 +69,16 @@ async function runTurn(
     }
   };
   const providerRow = getProvider(settings.providerName);
+  // Tools run in the session's project directory, never the user's home, and
+  // the tool surface is gated by the composer's access mode for this turn.
+  const cwd = resolveProjectDir(sid);
+  const tools = createTools({ mode: request.mode, allowedPaths: resolveRestrictedAllowedPaths(sid) });
+  const effort = request.reasoningEffort || (settings as Settings & { reasoningEffort?: string }).reasoningEffort;
   const turn = readTrace(sid).filter(e => e.kind === "turn_start").length + 1;
   logTrace(sid, {
     kind: "turn_start", turn, model: request.model ?? settings.model,
-    baseUrl: providerRow?.baseUrl ?? settings.apiBase, userMessage: opts.promptText,
+    baseUrl: providerRow?.baseUrl ?? settings.apiBase, mode: request.mode || "full-access",
+    effort: effort ?? "", userMessage: opts.promptText,
   });
   try {
     await getEngine().runTurn({
@@ -82,11 +89,11 @@ async function runTurn(
       apiKey: providerRow?.apiKey || "",
       modelId: request.model ?? settings.model,
       modelList: providerRow?.modelList.map(m => m.id) ?? [],
-      cwd: homedir(),
+      cwd,
       systemPrompt: buildSystemPrompt(settings.globalInstructions, session?.customInstructions ?? null),
       mode: (request.mode as string) || "full-access",
-      effort: request.reasoningEffort || (settings as Settings & { reasoningEffort?: string }).reasoningEffort,
-      tools: [],
+      effort,
+      tools,
       onChunk: c => {
         if (c.kind === "text" && c.delta) {
           // OpenAI-compatible providers may emit a whitespace-only text delta
@@ -184,7 +191,7 @@ export function registerChatHandler(): void {
       sessionId: request.sessionId,
       promptText: anchor.content,
       occurrence: anchorOccurrence,
-      cwd: homedir(),
+      cwd: resolveProjectDir(request.sessionId),
     });
     const target = history.slice(anchorIdx + 1).find(m => m.role === "assistant");
     // Retry = new branch: archive everything after the target under its current
@@ -211,15 +218,22 @@ export function registerChatHandler(): void {
     return { summary };
   });
 
-  // Context usage estimate for the composer pill. Tool schema weight is fixed
-  // until the engine reports a real token count.
+  // Context usage estimate for the composer pill. Compacted messages are
+  // replaced by the summary in the model's context, so the estimate counts
+  // the summary plus only the messages still in context. Tool schema weight
+  // is fixed until the engine reports a real token count.
   registerApiHandler("chat:contextInfo", (_e, sessionId: string) => {
     const settings = getSettings();
     const session = getSession(sessionId);
     const est = (s: string) => Math.round(s.length / 4);
     const system = est(buildSystemPrompt(settings.globalInstructions, session?.customInstructions ?? null));
     const tools = 1800;
-    const messages = getMessages(sessionId).reduce((a, m) => a + est(m.content), 0);
+    const compaction = readCompactionRecord(sessionId);
+    const excluded = compaction ? new Set(compaction.excludedMessageIds) : null;
+    const messages = (compaction ? est(compaction.summary) : 0) +
+      getMessages(sessionId)
+        .filter(m => !excluded || !excluded.has(m.id))
+        .reduce((a, m) => a + est(m.content), 0);
     let cacheRate: number | null = null;
     const evts = readTrace(sessionId);
     for (let i = evts.length - 1; i >= 0; i--) {
