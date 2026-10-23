@@ -48,7 +48,7 @@ export function useProviders() {
           id: m.id,
           name: m.id.split("/").pop() || m.id,
           provider: p.id,
-          providerLabel: p.name.toUpperCase(),
+          providerLabel: p.name,
           description: `${p.name} • ${m.context || ""} ${m.vision ? "Vision" : ""}`.trim(),
           baseUrl: p.baseUrl,
           apiFormat: p.apiFormat,
