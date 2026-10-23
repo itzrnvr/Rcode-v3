@@ -27,9 +27,14 @@ const PRESETS: Array<{
   { id: "rcode-blue", label: "Rcode Blue", description: "Cyan accent, dark minimal" },
   { id: "classic-dark", label: "Classic Dark", description: "Blue accent, high contrast" },
   { id: "light-classic", label: "Light Classic", description: "Light surfaces, blue accent" },
+  // Prototype: Samsung One UI 6/7 language. The palette, 8/12/16/24 radius
+  // ladder, 15px type base and spring motion live in the [data-theme="one-ui"]
+  // block at the end of index.css; this card only switches the preset.
+  { id: "one-ui", label: "One UI (Samsung)", description: "Prototype — big radii, One UI blue" },
 ];
 
 const UI_FONTS = [
+  "Geist Variable, sans-serif",
   "Inter, sans-serif",
   "system-ui, -apple-system, sans-serif",
   "SF Pro Display, sans-serif",
@@ -38,6 +43,7 @@ const UI_FONTS = [
 ];
 
 const CODE_FONTS = [
+  "'Geist Mono Variable', monospace",
   "'JetBrains Mono', monospace",
   "'Cascadia Code', monospace",
   "Menlo, monospace",
@@ -199,7 +205,7 @@ export function ThemeSettings() {
             onChange={e => handleChange("fontSizeScale", parseFloat(e.target.value))}
             style={{ ["--range-pct" as string]: `${((theme.fontSizeScale - 0.85) / 0.3) * 100}%` } as React.CSSProperties}
           />
-          <span style={{ minWidth: 44, textAlign: "right", fontSize: 12, fontVariantNumeric: "tabular-nums", color: "var(--color-muted)", background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "2px 6px" }}>{theme.fontSizeScale.toFixed(2)}×</span>
+          <span style={{ minWidth: 44, textAlign: "right", fontSize: 12, fontVariantNumeric: "tabular-nums", color: "var(--color-foreground-subtle)", background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "2px 6px" }}>{theme.fontSizeScale.toFixed(2)}×</span>
         </div>
       </div>
 
@@ -215,7 +221,7 @@ export function ThemeSettings() {
             onChange={e => handleChange("radius", parseInt(e.target.value, 10))}
             style={{ ["--range-pct" as string]: `${((theme.radius - 4) / 18) * 100}%` } as React.CSSProperties}
           />
-          <span style={{ minWidth: 44, textAlign: "right", fontSize: 12, fontVariantNumeric: "tabular-nums", color: "var(--color-muted)", background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "2px 6px" }}>{theme.radius}px</span>
+          <span style={{ minWidth: 44, textAlign: "right", fontSize: 12, fontVariantNumeric: "tabular-nums", color: "var(--color-foreground-subtle)", background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "2px 6px" }}>{theme.radius}px</span>
         </div>
       </div>
 

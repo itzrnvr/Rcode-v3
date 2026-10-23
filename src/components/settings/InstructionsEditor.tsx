@@ -80,7 +80,7 @@ export function InstructionsEditor() {
       )}
 
       {!currentSessionId && (
-        <div style={{ color: "var(--color-muted)", fontSize: 13, padding: 8 }}>
+        <div style={{ color: "var(--color-foreground-subtle)", fontSize: 13, padding: 8 }}>
           Select a session to edit its per-session instructions.
         </div>
       )}

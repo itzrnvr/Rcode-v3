@@ -52,18 +52,6 @@ const CATEGORIES: CategoryDef[] = [
     Icon: CpuIcon,
     description: "Providers, endpoints, model lists",
   },
-  {
-    id: "data",
-    label: "Data",
-    Icon: HistoryIcon,
-    description: "Sessions, exports, storage",
-  },
-  {
-    id: "about",
-    label: "About",
-    Icon: InfoIcon,
-    description: "Version, licenses",
-  },
 ];
 
 interface SettingsPageProps {
@@ -149,10 +137,13 @@ export function SettingsPage({ onClose, initialCategory }: SettingsPageProps) {
               </button>
             );
           })}
-          <div className="settings-nav-section" style={{marginTop:12}}>Integrations</div>
-          <div className="settings-sidebar-item" style={{opacity:0.5, pointerEvents:'none'}}><span>Plugins</span></div>
-          <div className="settings-sidebar-item" style={{opacity:0.5, pointerEvents:'none'}}><span>Browser</span></div>
-          <div className="settings-nav-section" style={{marginTop:12}}>Coding</div>
+          {/*
+            Data, About and the Integrations / Coding section headers are gone
+            for v1. The Plugins and Browser entries under Integrations were
+            already inert - pointerEvents:'none' at half opacity - so they were
+            navigation-shaped placeholders rather than features.
+            Additive to restore.
+          */}
         </nav>
       </aside>
       <div className="settings-sidebar-resizer" onMouseDown={handleResizerMouseDown} role="separator" aria-orientation="vertical" title="Drag to resize" />

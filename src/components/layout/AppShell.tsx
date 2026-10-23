@@ -140,28 +140,7 @@ export function AppShell({ titleBar, sessions, chat, sidePanel, sidebarCollapsed
           />
         )}
         {!sidePanelCollapsed && sidePanel}
-        {sidebarCollapsed && (
-          <button
-            className="panel-edge-expand"
-            onClick={onToggleSidebar}
-            title="Expand sidebar"
-            aria-label="Expand sidebar"
-            type="button"
-          >
-            <ChevronRightIcon size={13} />
-          </button>
-        )}
-        {sidePanelCollapsed && (
-          <button
-            className="panel-edge-expand panel-edge-expand-right"
-            onClick={onToggleSidePanel}
-            title="Expand side panel"
-            aria-label="Expand side panel"
-            type="button"
-          >
-            <ChevronLeftIcon size={13} />
-          </button>
-        )}
+        {/*,         * The panel-edge-expand strips are gone. They rendered as a 16px,         * full-height button pinned to the opposite edge of the window - the,         * control for the LEFT sidebar sat on the far RIGHT - while the,         * titlebar already has a Toggle sidebar and a Toggle side panel.,         * Two ways to do one thing, one of them in the wrong place.,         */}
       </div>
     </div>
   );

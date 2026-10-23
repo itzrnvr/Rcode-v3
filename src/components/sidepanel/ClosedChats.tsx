@@ -16,7 +16,7 @@ export function ClosedChats({ tabs, onReopen }: ClosedChatsProps) {
 
   return (
     <div style={{ borderTop: "1px solid var(--color-border)", padding: "8px" }}>
-      <div style={{ fontSize: 11, color: "var(--color-muted)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 6 }}>
+      <div style={{ fontSize: 11, color: "var(--color-foreground-subtle)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 6 }}>
         Closed ({tabs.length})
       </div>
       {tabs.map(tab => (
@@ -29,7 +29,7 @@ export function ClosedChats({ tabs, onReopen }: ClosedChatsProps) {
           <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {tab.sideChatTitle ?? "Untitled"}
           </span>
-          <span style={{ fontSize: 11, color: "var(--color-muted)" }}>↺</span>
+          <span style={{ fontSize: 11, color: "var(--color-foreground-subtle)" }}>↺</span>
         </div>
       ))}
     </div>

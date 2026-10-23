@@ -1,66 +1,282 @@
+
 @import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
+@import "tailwindcss";
+@import "tw-animate-css";
 
 /*
- * Rcode — global styles + theme CSS variables
+ * Rcode - global styles + theme CSS variables
  *
- * Theme colors are set on :root by the useTheme hook.
- * All components reference these variables, so theme changes
- * are instantly reflected across the entire app.
+ * Tailwind v4. The palette lives in CSS: the :root block below is the source,
+ * applyTheme (src/lib/applyTheme.ts) writes the same names inline so theme
+ * switching stays instant. The @theme inline block maps the prebuilt
+ * components' shadcn utility names onto those vars without emitting new
+ * --color-* variables, because the app already owns that namespace.
  *
- * Design inspired by minimal, professional dark theme.
+ * Design authority: DESIGN.md (copied from zai-org/ZCode, Apache-2.0).
  */
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Class-based dark mode: index.html and gallery.html put .dark on <html>. */
+@custom-variant dark (&:where(.dark, .dark *));
 
-/* --- Theme variables (overwritten by useTheme hook) --- */
+/*
+ * Interface colour utilities. `inline` matters: it keeps Tailwind from
+ * emitting its own --color-* variables, which would collide with the app's
+ * --color-accent (brand cyan) and --color-muted (muted text) that mean
+ * something different from shadcn's hover-surface and muted-foreground.
+ */
+@theme inline {
+  --color-background: var(--color-bg);
+  --color-foreground: var(--color-fg);
+  --color-card: var(--color-surface);
+  --color-card-foreground: var(--color-fg);
+  --color-popover: var(--color-surface);
+  --color-popover-foreground: var(--color-fg);
+  --color-primary: var(--color-accent);
+  --color-primary-foreground: var(--color-bg);
+  --color-secondary: var(--color-surface);
+  --color-secondary-foreground: var(--color-fg);
+  --color-muted: var(--color-surface);
+  --color-muted-foreground: var(--color-foreground-subtle);
+  --color-accent: var(--color-surface);
+  --color-accent-foreground: var(--color-fg);
+  --color-destructive: var(--color-danger);
+  --color-destructive-foreground: var(--color-bg);
+  --color-border: var(--color-border);
+  --color-input: var(--color-border);
+  --color-ring: var(--color-accent);
+  --color-sidebar: var(--color-sidebar);
+  --color-sidebar-foreground: var(--color-fg);
+  --color-sidebar-primary: var(--color-accent);
+  --color-sidebar-primary-foreground: var(--color-bg);
+  --color-sidebar-accent: var(--color-surface);
+  --color-sidebar-accent-foreground: var(--color-fg);
+  --color-sidebar-border: var(--color-border);
+  --color-sidebar-ring: var(--color-accent);
+  --color-success: var(--color-success);
+  --color-warning: var(--color-warning);
+  --color-foreground-subtle: var(--color-foreground-subtle);
+  --color-foreground-subtlest: var(--color-foreground-subtlest);
+  /* Hover and pressed fills. These exist so no component reaches for an
+     ad-hoc color-mix --color-fg alpha to fake a hover surface. */
+  --color-hover: var(--color-hover);
+  --color-active: var(--color-active);
+  --color-menu: var(--color-menu);
+  --color-menu-hover: var(--color-menu-hover);
+  /* Borders, split by what they enclose. */
+  --color-border-hover: var(--color-border-hover);
+  --color-card-border: var(--color-card-border);
+  --color-popover-border: var(--color-popover-border);
+  --color-input-border: var(--color-input-border);
+  --color-input-border-hover: var(--color-input-border-hover);
+  --color-input-border-focused: var(--color-input-border-focused);
+}
+
+/*
+ * DESIGN.md interface typography and the radius steps the prebuilt components
+ * reference. --ui-font-size is the only knob that scales interface text; root
+ * font-size stays fixed so radii, spacing and icon sizes do not scale with it.
+ */
+@theme {
+  /* Geist ships with the app and is already self-hosted; it was imported but
+     never applied, so every surface rendered in the OS default font. */
+  --font-sans: "Geist Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Geist Mono Variable", "JetBrains Mono", "Cascadia Code", Consolas, monospace;
+  --text-ui-xl: calc(var(--ui-font-size) + 4px);
+  --text-ui-lg: calc(var(--ui-font-size) + 2px);
+  --text-ui-base: var(--ui-font-size);
+  --text-ui-caption: calc(var(--ui-font-size) - 1px);
+  --text-ui-sm: calc(var(--ui-font-size) - 2px);
+  --text-ui-xs: calc(var(--ui-font-size) - 4px);
+  --text-ui-2xs: calc(var(--ui-font-size) - 5px);
+  /* --radius, --radius-sm and --radius-lg are theme-driven (applyTheme).
+     These two had no definition anywhere, which left
+     rounded-[min(var(--radius-md),10px)] in button.tsx resolving to nothing. */
+  --radius-md: 6px;
+  --radius-xl: 12px;
+
+  /* Elevation. DESIGN.md defines exactly two shadow levels - overlay
+     (shadow-md) and attention (shadow-lg) - and says to layer with background
+     contrast and borders before reaching for shadow. Tailwind's own defaults
+     are tuned for light UIs, so shadow-md/lg would have been the wrong depth
+     on this near-black background; defining them here puts Tailwind's
+     utilities on the same scale as --shadow-md/--shadow-lg above. */
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.5), 0 2px 4px -2px rgb(0 0 0 / 0.4);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.55), 0 4px 6px -4px rgb(0 0 0 / 0.4);
+}
+
+/*
+ * --- Palette: zai-dark (ported from zai-org/ZCode, Apache-2.0) ---
+ *
+ * This is ZCode's actual default theme, copied out of packages/ui/src/styles.css
+ * rather than approximated. The thing that makes it read as a finished product
+ * is that it is MONOCHROME. Brand is #ffffff, not a cyan. --color-accent is
+ * #001d3d, a near-black blue used as a tint *behind* white text, never as a
+ * fill on its own. Cyan survives only in terminal and usage-chart tokens,
+ * where it carries data rather than chrome. Rcode used #5DD1FF as its accent
+ * on buttons, badges, focus rings and borders all at once, which is why every
+ * surface competed with every other surface.
+ *
+ * Surfaces are also alpha-based, not a ladder of hand-picked greys: card,
+ * popover and menu are all #2b2b2b, panels are #202020, and hover/selected
+ * are rgba(255,255,255,.05)/(.1) over whatever is behind them. That is why
+ * ZCode's dark UI still feels like one material instead of five.
+ *
+ * DEVIATION, deliberate: ZCode sets foreground-subtlest at 30% foreground,
+ * which measures 2.21:1 on this background and is unreadable as text. Both
+ * weak steps are lifted here to 70% / 60% (about 6.4:1 and 5.1:1) so the ladder
+ * survives WCAG AA. The gallery's measured contrast table is what flagged it.
+ */
 :root {
-  --color-accent: #5DD1FF;
+  /* Brand and status. White is the brand; these are for real state only. */
+  --color-accent: #ffffff;
+  --color-brand: #ffffff;
+  --color-accent-tint: #001d3d;
+  --color-success: #46bf72;
+  --color-warning: #ff8a30;
+  --color-danger: #ff5c5c;
+  --color-accent-soft: rgba(255, 255, 255, 0.1);
+  --color-accent-muted: rgba(255, 255, 255, 0.05);
+  --color-danger-soft: rgba(255, 92, 92, 0.12);
+  --color-danger-muted: rgba(255, 92, 92, 0.06);
+
+  /* Surfaces. Four solid steps; everything else is alpha over these. */
   --color-bg: #161616;
-  --color-fg: #FFFFFA;
-  --color-surface: #1e1e1e;
-  --color-sidebar: #0f0f0f;
+  --color-surface: #202020;
+  --color-menu: #2b2b2b;
+  --color-sidebar: #161616;
+  --color-card: #2b2b2b;
+  --color-popover: #2b2b2b;
+  --color-input: #2b2b2b;
+
+  /* Hover and active. Alpha over whatever sits behind them, never fixed greys,
+     so a hover inside a card and a hover inside a panel read the same. */
+  --color-hover: rgba(255, 255, 255, 0.05);
+  --color-active: rgba(255, 255, 255, 0.1);
+  --color-selected: rgba(255, 255, 255, 0.1);
+  --color-menu-hover: #363636;
+
+  /* Text: Tailwind neutral-300, then two alpha steps down. */
+  --color-fg: #d4d4d4;
+  --color-foreground-subtle: color-mix(in srgb, var(--color-fg) 70%, transparent);
+  --color-foreground-subtlest: color-mix(in srgb, var(--color-fg) 60%, transparent);
+
+  /* Borders. One alpha ramp. A focused input takes the brand (white) - the
+     same move ZCode makes, and the reason its focus state is unmistakable
+     without a coloured ring competing with the content. */
+  --color-border: rgba(255, 255, 255, 0.1);
+  --color-border-hover: rgba(255, 255, 255, 0.15);
+  --color-card-border: rgba(255, 255, 255, 0.1);
+  --color-popover-border: rgba(255, 255, 255, 0.1);
+  --color-input-border: rgba(255, 255, 255, 0.1);
+  --color-input-border-hover: rgba(255, 255, 255, 0.15);
+  --color-input-border-focused: #ffffff;
+
+  --color-tab: #202020;
+  --color-tab-active: #161616;
+
+  --color-muted: var(--color-foreground-subtle);
   --color-bg-secondary: var(--color-surface);
-  --color-bg-tertiary: var(--color-border);
-  --color-border: #262626;
-  --color-muted: #8a8a8a;
-  --color-success: #17B88B;
-  --color-warning: #FFD60A;
-  --color-danger: #FF5C5C;
-  --color-accent-soft: color-mix(in srgb, var(--color-accent) 12%, transparent);
-  --color-accent-muted: color-mix(in srgb, var(--color-accent) 6%, transparent);
-  --color-shadow: color-mix(in srgb, #000 30%, transparent);
-  --font-ui: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-code: "JetBrains Mono", "Cascadia Code", "Consolas", monospace;
+  --color-bg-tertiary: var(--color-surface);
+
+  /* Sidebar surface aliases read by the prebuilt sidebar-* utilities. */
+  --sidebar: var(--color-sidebar);
+  --sidebar-foreground: var(--color-fg);
+  --sidebar-primary: var(--color-accent);
+  --sidebar-primary-foreground: var(--color-bg);
+  --sidebar-accent: var(--color-hover);
+  --sidebar-accent-foreground: var(--color-fg);
+  --sidebar-border: var(--color-border);
+  --sidebar-ring: var(--color-accent);
+
+  /* Elevation: ZCode is deliberately flat and separates with hairlines. Two
+     levels, both inherited from Tailwind v4's defaults, retuned for a
+     near-black ground where stock values are almost invisible. */
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.5), 0 2px 4px -2px rgb(0 0 0 / 0.4);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.55), 0 4px 6px -4px rgb(0 0 0 / 0.4);
+  --color-shadow: rgb(0 0 0 / 0.4);
+
+  --font-ui: var(--font-sans);
+  --font-code: var(--font-mono);
+
+  /* Interface font size. Per DESIGN.md this is the only knob that scales UI
+     text; root html font-size must stay fixed so radii, spacing and icon
+     sizes do not scale with it. ZCode's base is 14px at scale 1.0. */
   --font-scale: 1;
-  --radius: 10px;
-  --radius-sm: 6px;
-  --radius-lg: 16px;
+  --ui-font-size: calc(14px * var(--font-scale));
+
+  /* Radius: ZCode defines none of its own and uses Tailwind's scale, with
+     controls at rounded-md and larger containers at rounded-lg. Rcode had a
+     custom 10px base that made every control read one step heavier than the
+     reference. */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius: 8px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
   --radius-pill: 999px;
-  --ease-out: cubic-bezier(0.165, 0.84, 0.44, 1);
-  --duration-fast: 150ms;
-  --duration-normal: 250ms;
+
+  /* Motion: ZCode's own vocabulary, from styles.css .wf-motion. */
+  --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --duration-fast: 120ms;
+  --duration-normal: 160ms;
+  --duration-slow: 200ms;
+  /* Panel-width transitions. Slower than a control transition because the
+     distance is large: at 200ms a 228px collapse reads as a snap. */
+  --duration-panel: 260ms;
   --sidebar-translucent: 1;
   --contrast-multiplier: 1;
 }
 
-* { margin: 0; padding: 0; box-sizing: border-box; }
+/*
+ * Base resets live in @layer base. In Tailwind v4, unlayered author CSS beats
+ * every utility regardless of specificity, so an unlayered universal margin
+ * reset silently disables px-*/py-*/m-*/gap-* across the whole app.
+ */
+@layer base {
 
+  /* Browser-owned surfaces themed from the palette: selection, caret and
+   scrollbars otherwise ship with defaults that belong to no design system. */
 html, body, #root {
-  height: 100%;
-  overflow: hidden;
-}
+    height: 100%;
+    overflow: hidden;
+  }
 
-body {
-  background: var(--color-bg);
-  color: var(--color-fg);
-  font-family: var(--font-ui);
-  font-size: calc(15px * var(--font-scale, 1));
-  line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
-  transition: background-color var(--duration-normal) var(--ease-out);
+  /*
+   * Focus indicator.
+   *
+   * This lives in @layer base on purpose. It used to be unlayered author CSS,
+   * which in Tailwind v4 beats every utility regardless of specificity - so no
+   * component could opt out of it. It also carried `border-radius: 4px`, which
+   * is both unnecessary (an outline already follows the element's own radius)
+   * and destructive: it overrode rounded-none on the input inside an
+   * InputGroup, drawing a second rounded rectangle on every focus. One focused
+   * control looked like two nested squares.
+   */
+  :focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--color-accent) 60%, transparent);
+    outline-offset: 2px;
+  }
+
+  /*
+   * Form controls opt out and own their focus instead. Leaving them in meant
+   * every focused input drew both this outline and the component's own ring -
+   * two indicators for one state. Each control here has a deliberate focus
+   * treatment: the prebuilt Input draws border-ring + ring-3, and the rule
+   * below covers the plain inputs in the legacy settings markup that never had
+   * one. InputGroupInput is borderless on purpose; its group draws the ring.
+   */
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline: none;
+  }
+
+  input:focus,
+  textarea:focus {
+    border-color: var(--color-input-border-focused);
+  }
 }
 
 /* Chat content must be selectable for copy */
@@ -71,12 +287,10 @@ body {
   color: var(--color-fg);
 }
 
-/* --- Focus ring --- */
-:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--color-accent) 60%, transparent);
-  outline-offset: 2px;
-  border-radius: 4px;
-}
+/* --- Focus ring ---
+   Moved into @layer base above. It stayed here as unlayered author CSS, where
+   it outranked every utility and forced border-radius: 4px onto elements that
+   had opted out of it. */
 
 /* --- Scrollbar --- */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
@@ -129,6 +343,14 @@ body {
   overflow: hidden;
 }
 
+/*
+ * Sidebar expand/collapse. The two states render different children, but both
+ * return the same <div class="panel-sessions">, so React updates that node
+ * rather than recreating it - which is what lets a width transition run at
+ * all. Without it the panel jumped between 280px and 52px in one frame.
+ * Children still swap in a single frame, so they carry their own short
+ * fade/slide to cover the seam.
+ */
 .panel-sessions {
   width: 280px;
   min-width: 220px;
@@ -139,6 +361,10 @@ body {
   background: var(--color-sidebar);
   position: relative;
   overflow: hidden;
+  transition:
+    width var(--duration-panel) var(--ease-out),
+    min-width var(--duration-panel) var(--ease-out),
+    padding var(--duration-panel) var(--ease-out);
 }
 
 .sidebar-resizer {
@@ -166,15 +392,6 @@ body {
   inset: 0 -4px 0 -4px;
 }
 
-.panel-chat {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  background: transparent;
-  position: relative;
-}
-
 .panel-side {
   width: 320px;
   min-width: 260px;
@@ -197,7 +414,7 @@ body {
     bottom: 0;
     width: min(86vw, 320px);
     z-index: 60;
-    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
+    box-shadow: var(--shadow-md);
   }
   .panel-sessions {
     left: 0;
@@ -207,16 +424,25 @@ body {
     right: 0;
     border-left: 1px solid var(--color-border);
   }
-  .app-shell[data-sidebar-open="false"] .panel-sessions,
-  .app-shell[data-sidepanel-open="false"] .panel-side {
+  .app-shell[data-sidebar-open="false"] .panel-sessions {
     transform: translateX(-100%);
   }
   .app-shell[data-sidepanel-open="false"] .panel-side {
     transform: translateX(100%);
   }
-  .panel-sessions,
   .panel-side {
     transition: transform 180ms ease-out;
+  }
+  /*
+   * The resize handles are dead weight on a phone: both panels are fixed-width
+   * drawers pulled out of the flex flow, so each 4px handle stays parked at the
+   * viewport edge UNDER the open drawer - unclickable, and Playwright's
+   * hit-target check hangs forever on it (the mobile side-panel test timed out
+   * exactly there). Drawers have no resize affordance on this layout, so hide
+   * the handles rather than leave invisible, blocking chrome.
+   */
+  .sidebar-resizer {
+    display: none;
   }
 }
 
@@ -293,17 +519,6 @@ body {
   flex-direction: column;
   gap: 1px;
 }
-.sidebar-section-title {
-  padding: 12px 14px 4px;
-  font-size: 10px;
-  color: var(--color-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
 
 .sidebar-nav-btn.active {
   background: var(--color-accent-soft);
@@ -324,12 +539,12 @@ body {
 .sidebar-group-label {
   font-size: 11px;
   font-weight: 600;
-  color: var(--color-muted);
+  color: var(--color-foreground-subtle);
   padding: 10px 14px 4px;
 }
 .sidebar-empty-hint {
   font-size: 12px;
-  color: var(--color-muted);
+  color: var(--color-foreground-subtle);
   padding: 2px 14px 8px;
   opacity: 0.7;
 }
@@ -344,6 +559,10 @@ body {
   gap: 10px;
   padding: 10px 12px;
   margin: auto 8px 8px;
+  /* width:100% alongside the 8px side margins asked for 296px of a 280px
+     column, so the button overflowed and its hover fill ran flush off the
+     right edge. Subtract the margins instead of ignoring them. */
+  width: calc(100% - 16px);
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: background var(--duration-fast) var(--ease-out);
@@ -351,7 +570,7 @@ body {
   background: transparent;
   width: 100%;
   text-align: left;
-  color: var(--color-muted);
+  color: var(--color-foreground-subtle);
   border: 1px solid transparent;
   font-family: inherit;
   font-size: 13px;
@@ -363,7 +582,7 @@ body {
   border-color: color-mix(in srgb, var(--color-fg) 8%, transparent);
 }
 .sidebar-profile svg {
-  color: var(--color-muted);
+  color: var(--color-foreground-subtle);
   flex-shrink: 0;
 }
 .sidebar-profile:hover svg {
@@ -373,37 +592,6 @@ body {
   flex: 1;
   font-size: 13px;
   font-weight: 500;
-}
-.rotate-90 { transform: rotate(-90deg); transition: transform var(--duration-fast) var(--ease-out); }
-.rotate-180 { transform: rotate(180deg); }
-
-.session-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 7px 14px;
-  margin: 0 6px;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  font-size: 13px;
-  color: var(--color-fg);
-  transition: all var(--duration-fast) var(--ease-out);
-  position: relative;
-}
-.session-item:hover {
-  background: color-mix(in srgb, var(--color-fg) 4%, transparent);
-}
-.session-item.active {
-  background: var(--color-accent-soft);
-  color: var(--color-accent);
-}
-.session-item-title {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  overflow: hidden;
 }
 .session-item-title-text {
   flex: 1 1 auto;
@@ -415,14 +603,9 @@ body {
 .session-item-fork {
   display: flex;
   flex: 0 0 auto;
-  color: var(--color-muted);
+  color: var(--color-foreground-subtle);
 }
-.session-item-time {
-  font-size: 10px;
-  color: var(--color-muted);
-  font-variant-numeric: tabular-nums;
-  flex-shrink: 0;
-}
+
 .session-item.active .session-item-time { color: color-mix(in srgb, var(--color-accent) 80%, transparent); }
 
 /* --- Sidebar navigation --- */
@@ -455,7 +638,7 @@ body {
 }
 
 .sidebar-nav-btn svg {
-  color: var(--color-muted);
+  color: var(--color-foreground-subtle);
   flex-shrink: 0;
 }
 
@@ -470,7 +653,7 @@ body {
   padding: 2px 6px;
   border-radius: 4px;
   background: var(--color-bg-tertiary);
-  color: var(--color-muted);
+  color: var(--color-foreground-subtle);
   border: 1px solid var(--color-border);
 }
 
@@ -484,12 +667,53 @@ body {
 
 .sidebar-loading {
   padding: 12px;
-  color: var(--color-muted);
+  color: var(--color-foreground-subtle);
   font-size: 13px;
 }
 
+.session-item:hover {
+  background: var(--color-bg-tertiary);
+}
+
+.session-item.active {
+  color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+}
+
+.session-item-title {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+  width: 100%;
+  /* The row actions (pin / edit / delete) are an absolutely-positioned
+     overlay that fades in on hover. With no reserved space they sat on top of
+     the session title, so the text vanished under them on every hover. The
+     space is reserved unconditionally rather than added on hover, so the row
+     never reflows. box-sizing is border-box globally, so this fits width:100%. */
+  padding-right: 96px;
+}
+
+.session-item-time {
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--color-foreground-subtle);
+  text-align: left;
+}
 /* --- Session list item --- */
 .session-item {
+  margin: 0 6px;
+  font-size: 13px;
+  color: var(--color-fg);
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -500,33 +724,6 @@ body {
   margin-bottom: 1px;
   align-items: flex-start;
   text-align: left;
-}
-
-.session-item:hover {
-  background: var(--color-bg-tertiary);
-}
-
-.session-item.active {
-  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
-}
-
-.session-item-title {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--color-fg);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  text-align: left;
-  width: 100%;
-}
-
-.session-item-time {
-  font-size: 11px;
-  color: var(--color-muted);
-  text-align: left;
-}
-.session-item {
   position: relative;
 }
 .session-item-actions {
@@ -560,7 +757,7 @@ body {
   border: none;
   border-radius: 6px;
   background: transparent;
-  color: var(--color-muted);
+  color: var(--color-foreground-subtle);
   cursor: pointer;
   transition: background 120ms, color 120ms;
 }
@@ -622,7 +819,7 @@ body {
   border: none;
   border-radius: 6px;
   background: transparent;
-  color: var(--color-muted);
+  color: var(--color-foreground-subtle);
   cursor: pointer;
   transition: background 0.12s, color 0.12s;
 }
@@ -642,7 +839,7 @@ body {
 
 .chat-depth {
   font-size: 11px;
-  color: var(--color-muted);
+  color: var(--color-foreground-subtle);
   padding: 2px 6px;
   border-radius: 4px;
   background: var(--color-bg-tertiary);
@@ -721,7 +918,7 @@ body {
   border: 1px solid var(--color-border);
   border-radius: 10px;
   padding: 5px;
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.42);
+  box-shadow: var(--shadow-md);
 }
 
 .context-menu-item {
@@ -742,7 +939,7 @@ body {
 }
 
 .context-menu-item:hover { background: var(--color-bg-tertiary); }
-.context-menu-item.danger { color: #ff6b6b; }
+.context-menu-item.danger { color: var(--color-danger); }
 
 .context-menu-separator {
   height: 1px;
@@ -784,7 +981,7 @@ body {
   max-height: 80vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-lg);
 }
 
 .settings-row {
@@ -801,10 +998,8 @@ body {
   flex-shrink: 0;
 }
 
-.settings-row input[type="text"],
 .settings-row input[type="color"],
-.settings-row select,
-.settings-row textarea {
+.settings-row select {
   background: var(--color-bg-tertiary);
   border: 1px solid var(--color-border);
   border-radius: 6px;
@@ -821,6 +1016,14 @@ body {
 }
 
 .settings-row textarea {
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  color: var(--color-fg);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.12s;
   width: 100%;
   min-height: 80px;
   resize: vertical;
@@ -877,7 +1080,7 @@ body {
   justify-content: center;
   height: 100%;
   gap: 8px;
-  color: var(--color-muted);
+  color: var(--color-foreground-subtle);
   font-size: 14px;
   text-align: center;
   padding: 40px;
@@ -890,7 +1093,7 @@ body {
 
 .empty-hint {
   font-size: 12px;
-  color: var(--color-muted);
+  color: var(--color-foreground-subtle);
   opacity: 0.7;
 }
 
@@ -908,12 +1111,12 @@ body {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  box-shadow: 0 16px 48px rgba(0,0,0,0.45), 0 4px 12px rgba(0,0,0,0.3);
+  box-shadow: var(--shadow-md);
   animation: radixShow 140ms var(--ease-out);
   outline: none;
 }
 .radix-popover:focus-visible {
-  box-shadow: 0 16px 48px rgba(0,0,0,0.45), 0 0 0 2px var(--color-accent);
+  box-shadow: var(--shadow-md), 0 0 0 2px var(--color-accent);
 }
 .radix-popover-arrow {
   fill: var(--color-surface);
@@ -955,7 +1158,7 @@ body {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+  box-shadow: var(--shadow-lg);
   padding: 24px;
   outline: none;
   animation: radixDialogShow 200ms var(--ease-out);
@@ -973,7 +1176,7 @@ body {
 .radix-dialog-description {
   margin: 0 0 16px;
   font-size: 12px;
-  color: var(--color-muted);
+  color: var(--color-foreground-subtle);
 }
 .radix-dialog-close {
   position: absolute;
@@ -987,7 +1190,7 @@ body {
   border: none;
   border-radius: var(--radius-sm);
   background: transparent;
-  color: var(--color-muted);
+  color: var(--color-foreground-subtle);
   cursor: pointer;
   transition: all var(--duration-fast) var(--ease-out);
 }
@@ -1004,7 +1207,7 @@ body {
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   padding: 4px;
-  box-shadow: 0 12px 32px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.3);
+  box-shadow: var(--shadow-md);
   animation: radixShow 120ms var(--ease-out);
   outline: none;
 }
@@ -1031,14 +1234,14 @@ body {
   color: var(--color-danger);
 }
 .radix-dropdown-item[data-disabled] {
-  color: var(--color-muted);
+  color: var(--color-foreground-subtle);
   cursor: not-allowed;
 }
 .radix-dropdown-label {
   padding: 4px 10px;
   font-size: 10px;
   font-weight: 700;
-  color: var(--color-muted);
+  color: var(--color-foreground-subtle);
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
@@ -1071,7 +1274,7 @@ body {
   color: var(--color-fg);
   font-size: 11px;
   font-weight: 500;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  box-shadow: var(--shadow-md);
   animation: radixShow 100ms var(--ease-out);
   outline: none;
   user-select: none;
@@ -1093,7 +1296,7 @@ body {
   border: none;
   border-radius: 4px;
   background: transparent;
-  color: var(--color-muted);
+  color: var(--color-foreground-subtle);
   font-size: 11px;
   font-weight: 500;
   cursor: pointer;
@@ -1110,6 +1313,12 @@ body {
    Welcome screen (mascot + greeting + quick-prompt grid)
    ============================================================ */
 .panel-chat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: transparent;
+  position: relative;
   align-items: center;
 }
 .panel-chat > * {
@@ -1164,7 +1373,7 @@ body {
   border: none;
   border-radius: var(--radius-sm);
   background: transparent;
-  color: var(--color-muted);
+  color: var(--color-foreground-subtle);
   cursor: pointer;
   font-family: inherit;
   font-size: 13px;
@@ -1180,7 +1389,18 @@ body {
 .settings-sidebar-back:active {
   background: color-mix(in srgb, var(--color-fg) 10%, transparent);
 }
-.settings-row input[type="text"],
+.settings-row input[type="text"] {
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.12s;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-fg);
+}
+
 .settings-row input[type="password"] {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -1207,11 +1427,11 @@ body {
   font-size: 12px;
   outline: none;
 }
-.settings-search::placeholder { color: var(--color-muted); }
+.settings-search::placeholder { color: var(--color-foreground-subtle); }
 .settings-nav-section {
   font-size: 11px;
   font-weight: 600;
-  color: var(--color-muted);
+  color: var(--color-foreground-subtle);
   padding: 10px 10px 4px;
   opacity: 0.6;
 }
@@ -1229,7 +1449,7 @@ body {
   border: none;
   border-radius: 8px;
   background: transparent;
-  color: var(--color-muted);
+  color: var(--color-foreground-subtle);
   cursor: pointer;
   font-family: inherit;
   font-size: 13px;
@@ -1283,7 +1503,7 @@ body {
 }
 .settings-content-desc {
   font-size: 13px;
-  color: var(--color-muted);
+  color: var(--color-foreground-subtle);
   margin: 0;
   line-height: 1.5;
 }
@@ -1306,12 +1526,12 @@ body {
   border-radius: 10px;
   background: var(--color-surface);
 }
-.settings-info-card svg { color: var(--color-muted); flex-shrink: 0; margin-top: 2px; }
+.settings-info-card svg { color: var(--color-foreground-subtle); flex-shrink: 0; margin-top: 2px; }
 .settings-info-title { font-size: 14px; font-weight: 600; color: var(--color-fg); margin-bottom: 5px; }
-.settings-info-meta { font-size: 13px; color: var(--color-muted); line-height: 1.5; }
+.settings-info-meta { font-size: 13px; color: var(--color-foreground-subtle); line-height: 1.5; }
 .settings-hint {
   font-size: 13px;
-  color: var(--color-muted);
+  color: var(--color-foreground-subtle);
   line-height: 1.65;
   margin: 0;
   padding: 2px 0;
@@ -1332,9 +1552,9 @@ body {
   transition: border-color var(--duration-fast) var(--ease-out);
 }
 .settings-mode-card:hover { border-color: color-mix(in srgb, var(--color-border) 100%, var(--color-fg) 12%); }
-.settings-mode-card svg { color: var(--color-muted); flex-shrink: 0; margin-top: 2px; }
+.settings-mode-card svg { color: var(--color-foreground-subtle); flex-shrink: 0; margin-top: 2px; }
 .settings-mode-card-title { font-size: 14px; font-weight: 600; color: var(--color-fg); margin-bottom: 4px; }
-.settings-mode-card-desc { font-size: 13px; color: var(--color-muted); line-height: 1.5; }
+.settings-mode-card-desc { font-size: 13px; color: var(--color-foreground-subtle); line-height: 1.5; }
 .settings-hotkey-row {
   display: flex;
   align-items: center;
@@ -1359,7 +1579,7 @@ body {
   font-family: var(--font-code);
   font-size: 11px;
   font-weight: 500;
-  color: var(--color-muted);
+  color: var(--color-foreground-subtle);
   box-shadow: 0 1px 2px rgba(0,0,0,0.08);
 }
 
@@ -1429,7 +1649,7 @@ body {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--color-muted);
+  color: var(--color-foreground-subtle);
   margin: 8px 0 2px;
   padding-bottom: 6px;
   border-bottom: 1px solid color-mix(in srgb, var(--color-border) 50%, transparent);
@@ -1467,9 +1687,9 @@ body {
   border: 1px solid var(--color-border);
 }
 .preset-preview-bg { flex: 2; }
-.preset-preview-sidebar { flex: 1; border-left: 1px solid rgba(255,255,255,0.06); }
+.preset-preview-sidebar { flex: 1; border-left: 1px solid var(--color-border); }
 .preset-card-label { font-size: 13px; font-weight: 600; color: var(--color-fg); }
-.preset-card-desc { font-size: 11px; color: var(--color-muted); line-height: 1.4; }
+.preset-card-desc { font-size: 11px; color: var(--color-foreground-subtle); line-height: 1.4; }
 .preset-mini-sidebar {
   position: absolute;
   left: 0;
@@ -1522,7 +1742,7 @@ body {
 .theme-color-hex {
   font-family: var(--font-code);
   font-size: 11px;
-  color: var(--color-muted);
+  color: var(--color-foreground-subtle);
   padding: 3px 8px;
   border-radius: 6px;
   background: var(--color-bg-tertiary);
@@ -1559,13 +1779,27 @@ body {
 .theme-code-old { background: #1e1e1e; border-right: 1px solid var(--color-border); }
 .theme-code-new { background: #1e1e1e; }
 .theme-code-line { padding: 1px 12px; display: flex; gap: 8px; }
-.theme-code-line .ln { color: var(--color-muted); min-width: 16px; text-align: right; opacity: 0.5; }
+.theme-code-line .ln { color: var(--color-foreground-subtle); min-width: 16px; text-align: right; opacity: 0.5; }
 .theme-code-line .kw { color: #c084fc; }
 .theme-code-line .tp { color: #5DD1FF; }
 .theme-code-line.del { background: rgba(220,38,38,0.18); border-left: 2px solid #dc2626; }
 .theme-code-line.add { background: rgba(23,184,139,0.18); border-left: 2px solid #17B88B; }
 
 /* --- Collapsed sidebar --- */
+.panel-sessions > * {
+  animation: sidebar-content-in var(--duration-panel) var(--ease-out);
+}
+@keyframes sidebar-content-in {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 .panel-sessions.collapsed {
   width: 52px;
   min-width: 52px;
@@ -1575,9 +1809,7 @@ body {
   align-items: center;
   gap: 10px;
 }
-.sidebar-expand-btn,
-.sidebar-collapsed-newchat,
-.sidebar-collapsed-profile {
+.sidebar-expand-btn {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1586,7 +1818,7 @@ body {
   border: none;
   border-radius: var(--radius-sm);
   background: transparent;
-  color: var(--color-muted);
+  color: var(--color-foreground-subtle);
   cursor: pointer;
   transition: all var(--duration-fast) var(--ease-out);
 }
@@ -1597,10 +1829,30 @@ body {
   color: var(--color-fg);
 }
 .sidebar-collapsed-newchat {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
   background: var(--color-accent-soft);
   color: var(--color-accent);
 }
 .sidebar-collapsed-profile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-foreground-subtle);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
   margin-top: auto;
 }
 
@@ -1613,7 +1865,7 @@ body {
   justify-content: space-between;
   padding: 12px 14px 4px;
   font-size: 10px;
-  color: var(--color-muted);
+  color: var(--color-foreground-subtle);
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-weight: 700;
@@ -1624,8 +1876,22 @@ body {
   font-family: inherit;
 }
 .sidebar-section-title-button:hover { color: var(--color-fg); }
-.sidebar-section-title-button .rotate-90 { transform: rotate(-90deg); transition: transform var(--duration-fast) var(--ease-out); }
-.sidebar-section-title { font-size: inherit; }
+/* Closed section chevron points right. Kept off the `rotate-90` utility name:
+   Tailwind emits `rotate: 90deg` for that class, and property+transform would
+   cancel to 0° — the bare global rule this replaces used to do exactly that
+   to every Tailwind rotate-* utility in the app. */
+.sidebar-section-title-button .chevron-closed { transform: rotate(-90deg); transition: transform var(--duration-fast) var(--ease-out); }
+.sidebar-section-title {
+  padding: 12px 14px 4px;
+  color: var(--color-foreground-subtle);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: inherit;
+}
 
 /* --- Titlebar sidebar toggle --- */
 .titlebar-sidebar-toggle {
@@ -1637,7 +1903,7 @@ body {
   border: none;
   border-radius: var(--radius-sm);
   background: transparent;
-  color: var(--color-muted);
+  color: var(--color-foreground-subtle);
   cursor: pointer;
   transition: all var(--duration-fast) var(--ease-out);
 }
@@ -1675,7 +1941,7 @@ body {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 10px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+  box-shadow: var(--shadow-md);
 }
 .feedback-tool {
   display: inline-flex;
@@ -1710,7 +1976,7 @@ body {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+  box-shadow: var(--shadow-md);
 }
 .feedback-note {
   width: 100%;
@@ -1738,7 +2004,7 @@ body {
 .feedback-save:disabled { opacity: 0.6; cursor: default; }
 .feedback-status {
   font-size: 11px;
-  color: var(--color-muted);
+  color: var(--color-foreground-subtle);
   word-break: break-all;
 }
 .feedback-comment-num {
@@ -1746,7 +2012,7 @@ body {
   width: 20px;
   height: 20px;
   border-radius: 999px;
-  background: #ff3b30;
+  background: var(--color-danger);
   color: #fff;
   font-size: 11px;
   font-weight: 700;
@@ -1775,7 +2041,7 @@ body {
   border-radius: 6px;
   border: 1px solid var(--color-border);
   background: transparent;
-  color: var(--color-muted);
+  color: var(--color-foreground-subtle);
   cursor: pointer;
   font-size: 12px;
   line-height: 1;
@@ -1793,7 +2059,7 @@ body {
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+  box-shadow: var(--shadow-md);
 }
 .feedback-popup {
   pointer-events: auto;
@@ -1807,7 +2073,7 @@ body {
   background: var(--color-surface);
   border: 1px solid var(--color-accent);
   border-radius: 10px;
-  box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+  box-shadow: var(--shadow-lg);
 }
 
 /* --- Model settings --- */
@@ -1828,7 +2094,7 @@ body {
 .ms-provider-row:hover { background: var(--color-bg-tertiary); }
 .ms-label {
   font-size: 12px;
-  color: var(--color-muted);
+  color: var(--color-foreground-subtle);
   margin: 10px 0 6px;
 }
 .ms-input {
@@ -1852,7 +2118,7 @@ body {
   border-radius: 6px;
   border: 1px solid transparent;
   background: transparent;
-  color: var(--color-muted);
+  color: var(--color-foreground-subtle);
   cursor: pointer;
 }
 .ms-iconbtn:hover { background: var(--color-bg-tertiary); color: var(--color-fg); }
@@ -1886,7 +2152,7 @@ body {
   flex-shrink: 0;
   font-size: 10px;
   font-weight: 700;
-  color: var(--color-muted);
+  color: var(--color-foreground-subtle);
   background: var(--color-bg-tertiary);
   border-radius: 999px;
   padding: 3px 8px;
@@ -1909,7 +2175,7 @@ body {
   border: 1px solid var(--color-border);
   border-radius: 14px;
   padding: 20px 24px;
-  box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+  box-shadow: var(--shadow-lg);
 }
 .ms-check {
   display: inline-flex;
@@ -1923,7 +2189,7 @@ body {
   cursor: pointer;
   background: var(--color-surface);
 }
-.ms-check.locked { color: var(--color-muted); cursor: default; }
+.ms-check.locked { color: var(--color-foreground-subtle); cursor: default; }
 .ms-check input { accent-color: var(--color-accent); }
 
 /* --- Agent turn --- */
@@ -1943,16 +2209,17 @@ body {
 .rcode-conversation-content > * {
   width: 100%;
 }
-.rcode-message {
-  min-width: 0;
-}
+
 .rcode-message.is-user {
   max-width: min(720px, 92%);
 }
 .rcode-message.is-assistant {
   max-width: 100%;
 }
-.rcode-message,
+.rcode-message {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
 .rcode-message * {
   overflow-wrap: anywhere;
 }
@@ -2006,48 +2273,16 @@ body {
   line-height: 1.55;
   color: var(--color-fg);
 }
-.rcode-composer-select {
-  min-width: 0;
-  border: 1px solid color-mix(in srgb, var(--color-fg) 10%, transparent);
-  border-radius: 9px;
-  background: color-mix(in srgb, var(--color-bg) 52%, transparent);
-  font-size: 12px;
-}
-.rcode-composer-select:hover {
-  border-color: color-mix(in srgb, var(--color-fg) 20%, transparent);
-  background: color-mix(in srgb, var(--color-surface) 68%, transparent);
-}
-.rcode-composer-model-trigger {
-  min-width: 0;
-  justify-content: center;
-  border: 1px solid color-mix(in srgb, var(--color-fg) 10%, transparent);
-  border-radius: 9px;
-  background: color-mix(in srgb, var(--color-bg) 52%, transparent);
-  padding: 0 8px;
-  font-size: 12px;
-}
-.rcode-composer-model-trigger:hover {
-  border-color: color-mix(in srgb, var(--color-fg) 20%, transparent);
-  background: color-mix(in srgb, var(--color-surface) 68%, transparent);
-}
 .rcode-composer-model-trigger[data-popup-open] {
   border-color: color-mix(in srgb, var(--color-fg) 20%, transparent);
   background: color-mix(in srgb, var(--color-surface) 68%, transparent);
 }
-.rcode-model-trigger-chevron {
-  transition: transform 0.15s ease;
-}
-.rcode-composer-model-trigger[data-popup-open] .rcode-model-trigger-chevron {
-  transform: rotate(180deg);
-}
 
-/* Hide the dropdown chevron on the composer pills (Base UI renders it as
-   the last <svg> child). The pill already opens on click, so the arrow
-   adds visual noise without information. */
-.rcode-composer-select > svg:last-child,
-.rcode-composer-model-trigger > svg:last-child {
-  display: none !important;
-}
+/* Both composer dropdowns keep their chevron. It used to be suppressed on the
+   mode pill back when that pill was a bare icon with no label, on the grounds
+   that the arrow added nothing. Once the pill shows the current access mode
+   the arrow is the only thing saying the label is a choice rather than a status
+   readout - exactly the reason it was restored on the model trigger. */
 .rcode-model-trigger-text {
   display: flex;
   flex: 1 1 auto;
@@ -2055,12 +2290,7 @@ body {
   min-width: 0;
   text-align: left;
 }
-.rcode-model-trigger-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-weight: 500;
-}
+
 .rcode-message .streamdown,
 .rcode-message [data-streamdown] {
   min-width: 0;
@@ -2069,24 +2299,6 @@ body {
   display: block;
   width: 100%;
   overflow-x: auto;
-}
-.rcode-model-trigger-provider {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 10px;
-  color: var(--color-muted);
-}
-.rcode-model-selector {
-  width: min(560px, calc(100vw - 32px));
-}
-.rcode-model-selector [cmdk-group-heading] {
-  padding: 8px 10px 4px;
-  color: var(--color-muted);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 /* Narrow side-chat variant of the prebuilt chat surface */
@@ -2114,7 +2326,7 @@ body {
 }
 .side-chat-label {
   font-size: 11px;
-  color: var(--color-muted);
+  color: var(--color-foreground-subtle);
 }
 .side-chat-thread .rcode-conversation-content {
   max-width: none;
@@ -2150,16 +2362,6 @@ body {
 }
 .rcode-worked-content [data-slot="collapsible-trigger"]:hover {
   color: var(--color-fg);
-}
-.rcode-prompt-footer {
-  flex-wrap: nowrap;
-  gap: 8px;
-}
-.rcode-prompt-tools {
-  flex: 1 1 auto;
-  flex-wrap: nowrap;
-  gap: 6px;
-  min-width: 0;
 }
 .rcode-prompt-submit {
   margin-left: auto;
@@ -2207,13 +2409,15 @@ body {
 .traffic-close:hover::before, .traffic-close:hover::after { background: #fff; }
 
 @keyframes sp-pop { from { opacity: 0; transform: translateY(-4px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
-.sp-menu { animation: sp-pop .13s ease-out; }
+
 .panel-side button { transition: background .12s ease, color .12s ease, border-color .12s ease, transform .12s ease; }
 .panel-side button:hover { transform: translateY(-0.5px); }
 @keyframes reveal-down { from { opacity: 0; clip-path: inset(0 0 100% 0); } to { opacity: 1; clip-path: inset(0 0 0 0); } }
 
-/* comfy-snappy global micro-motion */
-.session-item:hover { transform: translateX(1px); }
+/* comfy-snappy global micro-motion
+   The hover nudge was removed: translateX(1px) on :hover moves the row and
+   everything below it by a pixel on every pass of the pointer, which is layout
+   shift for no communicative gain. Hover now changes colour only. */
 @keyframes fade-slide { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
 [data-radix-popper-content-wrapper] { animation: none; }
 [data-radix-popper-content-wrapper] > * { animation: sp-pop .13s ease-out; }
@@ -2224,9 +2428,9 @@ body {
   gap: 6px;
   padding: 4px 10px;
   border-radius: 999px;
-  background: #1e1e1e;
-  border: 1px solid #262626;
-  color: #b8b8b8;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-foreground-subtle);
   font-size: 11.5px;
   cursor: pointer;
   min-width: 0;
@@ -2236,7 +2440,7 @@ body {
   white-space: nowrap;
   flex: 0 1 auto;
 }
-.header-pill:hover { background: #222; color: #e8e8e8; }
+.header-pill:hover { background: var(--color-hover); color: var(--color-fg); }
 
 .header-pill-static {
   cursor: default;
@@ -2254,7 +2458,7 @@ body {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 12px;
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.42);
+  box-shadow: var(--shadow-md);
   padding: 6px;
   z-index: 80;
   display: flex;
@@ -2285,7 +2489,7 @@ body {
   background: color-mix(in srgb, var(--color-fg) 8%, transparent);
 }
 .chat-header-overflow-item svg {
-  color: var(--color-muted);
+  color: var(--color-foreground-subtle);
   flex-shrink: 0;
 }
 .chat-header-overflow-item > span {
@@ -2309,7 +2513,7 @@ body {
   border-radius: 6px;
   background: transparent;
   border: 0;
-  color: var(--color-muted);
+  color: var(--color-foreground-subtle);
   font-size: 12px;
   text-align: left;
   cursor: pointer;
@@ -2322,92 +2526,106 @@ body {
 .chat-header-overflow-subitem.active {
   color: var(--color-accent);
 }
-/* dark themed scrollbars */
-*::-webkit-scrollbar { width: 10px; height: 10px; }
+/* Scrollbars: thinner and token-based rather than hard-coded white alpha. */
+*::-webkit-scrollbar { width: 8px; height: 8px; }
 *::-webkit-scrollbar-track { background: transparent; }
-*::-webkit-scrollbar-thumb { background: #ffffff30; border-radius: 6px; border: 2px solid transparent; background-clip: padding-box; }
-*::-webkit-scrollbar-thumb:hover { background: #4d4d4d; border: 2px solid transparent; background-clip: padding-box; }
-* { scrollbar-width: thin; scrollbar-color: #ffffff30 transparent; }
+*::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--color-fg) 18%, transparent);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--color-fg) 30%, transparent);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+/* Reduced motion: fewer and gentler, not none - state changes stay legible. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
 /*
  ---break---
  */
+/*
+ * Prebuilt-component token aliases.
+ *
+ * These are the shadcn-name tokens the vendored components read. They alias the
+ * app palette in CSS so the correct theme paints before applyTheme runs - the
+ * stock shadcn oklch values that used to sit here painted a light neutral UI in
+ * any surface that did not mount the app, which is why the gallery and the app
+ * disagreed. applyTheme overrides them inline for theme switching.
+ */
 @layer base {
-  .theme {
-    --font-heading: var(--font-sans);
-    --font-sans: 'Geist Variable', sans-serif;
-  }
-  :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
-    --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
-  }
+  :root,
   .dark {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.556 0 0);
+    --background: var(--color-bg);
+    --foreground: var(--color-fg);
+    --card: var(--color-surface);
+    --card-foreground: var(--color-fg);
+    --popover: var(--color-surface);
+    --popover-foreground: var(--color-fg);
+    --primary: var(--color-accent);
+    --primary-foreground: var(--color-bg);
+    --secondary: var(--color-surface);
+    --secondary-foreground: var(--color-fg);
+    --muted: var(--color-surface);
+    --muted-foreground: var(--color-foreground-subtle);
+    --accent: var(--color-surface);
+    --accent-foreground: var(--color-fg);
+    --destructive: var(--color-danger);
+    --destructive-foreground: var(--color-bg);
+    --border: var(--color-border);
+    --input: var(--color-input-border);
+    --ring: var(--color-accent);
+    --radius: 10px;
+  }
+  /*
+   * The prebuilt components were shipped against shadcn's single --border, so
+   * every input in the app was drawing a 1.20:1 edge against the page - too
+   * faint to read as a control boundary. Route the shadcn input aliases to the
+   * interactive border steps instead of demoting them here, so the vendored
+   * components pick up the same affordance the DESIGN.md tokens describe.
+   */
+  input:not([type="checkbox"]):not([type="radio"]),
+  textarea {
+    border-color: var(--color-input-border);
+    transition: border-color var(--duration-fast) var(--ease-out);
+  }
+  input:not([type="checkbox"]):not([type="radio"]):hover,
+  textarea:hover {
+    border-color: var(--color-input-border-hover);
   }
   * {
+    /* Universal reset, scrollbar defaults and shadcn border/outline aliases,
+    consolidated from the three copies of this selector. Stays in @layer
+    base so Tailwind utilities keep outranking it. */
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--color-fg) 18%, transparent) transparent;
     border-color: var(--border);
     outline-color: var(--ring);
   }
   body {
+    background: var(--color-bg);
+    color: var(--color-fg);
+    font-family: var(--font-ui);
+    /* Body text reads from the same scale as every text-ui-* token. It used to
+     be calc(15px * --font-scale), which put inherited text a full step above
+     text-ui-base - so copy that opted into the scale did not match the copy
+     that had not. */
+    font-size: var(--ui-font-size);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    transition: background-color var(--duration-normal) var(--ease-out);
     @apply bg-background text-foreground;
   }
   html {
@@ -2415,9 +2633,10 @@ body {
   }
 }
 
-/* Side panel popup and tab skin. Kept late so it wins over the legacy menu
-   animation rule without introducing more one-off inline styles. */
+/* Side panel popup and tab skin. The popup animation is consolidated
+   into this one .sp-menu block (the earlier duplicate definition is gone). */
 .sp-menu {
+  animation: sp-pop .13s ease-out;
   position: absolute;
   top: 44px;
   z-index: 1400;
@@ -2428,7 +2647,7 @@ body {
   border: 1px solid var(--color-border);
   border-radius: 10px;
   background: color-mix(in srgb, var(--color-surface) 96%, transparent);
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.42);
+  box-shadow: var(--shadow-md);
 }
 .sp-menu.anchored-right {
   right: 8px;
@@ -2479,7 +2698,7 @@ body {
   border: 1px solid var(--color-border);
   border-radius: 8px;
   background: var(--color-bg-secondary);
-  color: var(--color-muted);
+  color: var(--color-foreground-subtle);
   font: inherit;
   font-size: 12px;
   white-space: nowrap;
@@ -2523,7 +2742,7 @@ body {
   width: 20px;
   height: 20px;
   border-radius: 5px;
-  color: var(--color-muted);
+  color: var(--color-foreground-subtle);
 }
 .sidepanel-pill-close:hover {
   background: color-mix(in srgb, var(--color-fg) 8%, transparent);
@@ -2559,7 +2778,7 @@ body {
   flex: 1 1 auto;
   min-width: 0;
 }
-.sidepanel-menu-item.muted { color: var(--color-muted); }
+.sidepanel-menu-item.muted { color: var(--color-foreground-subtle); }
 .sidepanel-menu-label {
   flex: 1 1 auto;
   min-width: 0;
@@ -2574,12 +2793,12 @@ body {
 }
 .sidepanel-menu-heading {
   padding: 5px 8px;
-  color: var(--color-muted);
+  color: var(--color-foreground-subtle);
   font-size: 11px;
 }
 .sidepanel-menu-empty {
   padding: 5px 8px;
-  color: color-mix(in srgb, var(--color-muted) 72%, transparent);
+  color: color-mix(in srgb, var(--color-foreground-subtle) 72%, transparent);
   font-size: 12px;
 }
 .sidepanel-search {
@@ -2592,7 +2811,7 @@ body {
   border-radius: 8px;
   background: color-mix(in srgb, var(--color-bg) 70%, transparent);
 }
-.sidepanel-search-icon { display: flex; color: var(--color-muted); }
+.sidepanel-search-icon { display: flex; color: var(--color-foreground-subtle); }
 .sidepanel-search-input {
   flex: 1;
   min-width: 0;
@@ -2626,7 +2845,7 @@ body {
 }
 .sidepanel-empty-description {
   margin-bottom: 10px;
-  color: var(--color-muted);
+  color: var(--color-foreground-subtle);
   font-size: 12px;
 }
 .sidepanel-choice {
@@ -2680,7 +2899,7 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--color-muted);
+  color: var(--color-foreground-subtle);
   font-size: 12px;
 }
 .browser-pane-reload {
@@ -2717,6 +2936,38 @@ body {
   flex-wrap: nowrap;
   gap: 10px;
 }
+/* Composer controls on narrow screens.
+   The left group (attach, access mode, reasoning effort) and the right group
+   (model, mic, send) both compete for the same row. On a 488px phone the last
+   chevron of one control butted straight into the first of the other, so the
+   two read as a single malformed control.
+
+   Below 640px the effort control drops to its icon, matching what the access
+   mode and model pickers already do, and the model trigger gives up its
+   provider prefix before it gives up any of the model name. */
+@media (max-width: 639px) {
+  .rcode-effort-trigger-label {
+    display: none;
+  }
+  .rcode-effort-trigger,
+  .rcode-composer-model-trigger {
+    padding: 0 4px;
+  }
+  .rcode-prompt-tools {
+    gap: 4px;
+  }
+}
+@media (max-width: 479px) {
+  /* Provider is the least useful word in the composer once space is tight;
+     the model name is the one that identifies what will run. */
+  .rcode-model-trigger-provider {
+    display: none;
+  }
+  .rcode-composer-model-trigger {
+    max-width: 116px;
+  }
+}
+
 .rcode-prompt-tools {
   flex: 0 1 auto;
   flex-wrap: nowrap;
@@ -2738,60 +2989,170 @@ body {
   border-color: color-mix(in srgb, var(--color-fg) 20%, transparent);
   background: var(--color-surface);
 }
+/* Model trigger. Deliberately chrome-free: no icon, no border, no fill — just
+   the provider, the model name and a chevron. It is the same class of control
+   as the reasoning-effort and mode controls sitting beside it, so giving it a
+   bordered pill made it look like the one important thing in the toolbar when
+   it is really just another label you can click. ZCode's is a ghost button for
+   the same reason. It sizes from its content and truncates rather than
+   collapsing: it used to be pinned to 44px with the name hidden, so the
+   composer showed a layers glyph and nothing else. */
 .rcode-composer-model-trigger {
-  width: 44px;
   justify-content: center;
-  gap: 4px;
-  border: 1px solid color-mix(in srgb, var(--color-fg) 10%, transparent);
   border-radius: 9px;
-  background: color-mix(in srgb, var(--color-surface) 88%, transparent);
-  padding: 4px 10px;
-  font-size: 12px;
+  flex: 0 1 auto;
+  min-width: 0;
+  /* Without overflow:hidden the label and its chevron render outside the
+     trigger's own box, so at narrow widths the effort control's chevron and
+     this trigger's chevron occupied the same pixels instead of being laid out
+     side by side. Playwright caught this as two overlapping bounding boxes. */
+  overflow: hidden;
+  max-width: 260px;
+  border: 0;
+  background: transparent;
+  padding: 0 4px;
+  font-size: var(--text-ui-sm);
+  transition: color var(--duration-fast) var(--ease-out);
+  gap: 4px;
+}
+
+.rcode-model-trigger-label {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 4px;
   overflow: hidden;
 }
+.rcode-model-trigger-chevron {
+  flex: 0 0 auto;
+  color: var(--color-foreground-subtle);
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+.rcode-composer-model-trigger[data-popup-open] .rcode-model-trigger-chevron {
+  transform: rotate(180deg);
+}
+/* Access-mode trigger. Chrome-free for the same reason as the model trigger:
+   the two sit side by side in the composer, and a bordered pill next to a bare
+   label made one of them look like the primary control when neither is. */
 .rcode-mode-select [data-slot="select-trigger"] {
-  padding: 4px 10px;
-  border: 1px solid color-mix(in srgb, var(--color-fg) 10%, transparent);
-  border-radius: 9px;
-  background: color-mix(in srgb, var(--color-surface) 88%, transparent);
+  min-height: 28px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-foreground-subtle);
 }
 .rcode-mode-select [data-slot="select-trigger"]:hover,
 .rcode-mode-select [data-slot="select-trigger"][data-popup-open] {
-  background: color-mix(in srgb, var(--color-fg) 6%, transparent);
+  background: var(--color-hover);
   color: var(--color-fg);
 }
+/* Rotate the chevron while open, matching the model trigger. Base UI's
+   SelectTrigger has no select-indicator slot, so target the trailing svg as a
+   direct child - the mode icon is also an svg and must not turn with it. */
+.rcode-mode-select [data-slot="select-trigger"] > svg:last-of-type {
+  transition: transform var(--duration-fast) var(--ease-out);
+  color: var(--color-foreground-subtlest);
+}
+.rcode-mode-select [data-slot="select-trigger"][data-popup-open] > svg:last-of-type {
+  transform: rotate(180deg);
+}
 .rcode-mode-popup {
-  border-radius: 14px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.42);
-  min-width: 150px;
+  border-radius: var(--radius-lg);
+  background: var(--color-menu);
+  border: 1px solid var(--color-popover-border);
+  box-shadow: var(--shadow-md);
+  /* A definite width, not max-content. max-content sizes to the longest
+     unwrapped line, so the max-width clamp lands afterwards and the hint text
+     never re-wraps — it just runs off the edge of the panel on a phone. A
+     definite width makes the text wrap where the reader expects. */
+  width: min(272px, calc(100vw - 24px));
   padding: 4px;
 }
 .rcode-mode-popup [data-slot="select-item"] {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
   padding: 8px 10px;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   margin-bottom: 2px;
-  font-size: 12.5px;
+  font-size: var(--text-ui-base);
   cursor: pointer;
-  transition: background 0.12s ease, color 0.12s ease;
+  transition: background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+/*
+ * Touch targets. 32px rows are fine with a mouse and unusable with a thumb;
+ * the guideline is 44px and coarse pointers get it without affecting desktop.
+ */
+@media (pointer: coarse) {
+  .rcode-mode-select [data-slot="select-trigger"] {
+    min-height: 36px;
+  }
+  .rcode-mode-popup [data-slot="select-item"] {
+    min-height: 44px;
+    padding: 9px 10px;
+  }
 }
 .rcode-mode-popup [data-slot="select-item"][data-highlighted],
 .rcode-mode-popup [data-slot="select-item"]:hover {
-  background: color-mix(in srgb, var(--color-fg) 8%, transparent);
+  background: var(--color-menu-hover);
 }
 .rcode-mode-popup [data-slot="select-item"][data-selected="true"] {
   background: color-mix(in srgb, var(--color-accent) 15%, transparent);
   color: var(--color-fg);
 }
+/* Access-mode label on the trigger. Shown from md up — desktop and tablet —
+   and dropped below it, where the toolbar is tight and the icon carries the
+   meaning on its own. The label is the important half: the icon alone cannot
+   say whether the agent can currently run commands. */
+.rcode-mode-trigger-label {
+  color: var(--color-foreground);
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+}
+@media (max-width: 767px) {
+  .rcode-mode-trigger-label {
+    display: none;
+  }
+}
+
 .rcode-mode-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
   width: 100%;
 }
+.rcode-mode-item-icon {
+  flex: 0 0 auto;
+  margin-top: 1px;
+  color: var(--color-foreground-subtlest);
+}
+.rcode-mode-item-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.rcode-mode-item-label {
+  color: var(--color-foreground);
+  font-weight: 500;
+  line-height: 1.3;
+  /* select.tsx hard-codes whitespace-nowrap on Base UI's ItemText, and
+     white-space inherits, so a two-line item silently overflows its panel.
+     Reclaiming it here is the whole reason the descriptions were invisible. */
+  white-space: normal;
+}
+.rcode-mode-item-hint {
+  color: var(--color-foreground-subtlest);
+  font-size: var(--text-ui-sm);
+  line-height: 1.4;
+  white-space: normal;
+}
 .rcode-mode-item svg {
-  color: var(--color-muted);
+  color: var(--color-foreground-subtle);
   flex-shrink: 0;
 }
 .rcode-mode-popup [data-slot="select-item"][data-selected="true"] .rcode-mode-item svg {
@@ -2802,6 +3163,8 @@ body {
   background: var(--color-surface);
 }
 .rcode-model-trigger-name {
+  flex: 0 1 auto;
+  color: var(--color-foreground);
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2814,37 +3177,13 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--color-muted);
+  color: var(--color-foreground-subtle);
   font-size: 10px;
-}
-.rcode-model-selector {
-  width: min(320px, calc(100vw - 32px)) !important;
-  overflow: hidden;
-  border-radius: 14px;
-}
-.rcode-model-selector [data-slot="command"] {
-  max-height: min(56vh, 320px);
-  background: transparent;
-}
-.rcode-model-selector [data-slot="command-input-wrapper"] {
-  margin: 2px 2px 0;
-  border-bottom: 1px solid var(--color-border);
-}
-.rcode-model-selector [data-slot="command-list"] {
-  max-height: min(46vh, 260px);
-  padding-top: 4px;
-}
-.rcode-model-item-provider {
-  flex: 0 0 auto;
-  color: var(--color-muted);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
 }
 
 @media (max-width: 1120px) {
   .rcode-composer-model-trigger {
-    width: 44px;
+    max-width: 170px;
   }
 }
 
@@ -2890,7 +3229,7 @@ body {
   border-left: 1px solid var(--color-border);
   border-radius: 6px;
   background: var(--color-bg-secondary);
-  color: var(--color-muted);
+  color: var(--color-foreground-subtle);
   cursor: pointer;
   transition: background 120ms ease-out, color 120ms ease-out, width 120ms ease-out;
 }
@@ -2909,101 +3248,271 @@ body {
   transition: width 120ms ease-out;
 }
 
-/* Model picker: explicitly dark, compact, and non-repetitive. */
-.rcode-composer-model-trigger {
-  width: 44px;
-  gap: 4px;
-}
-.rcode-composer-model-trigger .rcode-model-trigger-name {
-  display: none;
-}
+/* --- Model picker panel -------------------------------------------------
+ * One block. This selector was defined four times over the file with
+ * conflicting width, radius, max-height and padding, and the last one simply
+ * won by order - which is why the panel ended up heavier than everything around
+ * it. Consolidated here so the values are a decision again, and set to match
+ * ZCode's picker: one line per row, ui-* type scale, menu surface, shadow-md. */
 .rcode-model-selector {
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.42);
-  border-radius: 16px;
+  width: min(300px, calc(100vw - 24px));
+  border: 1px solid var(--color-popover-border);
+  background: var(--color-menu);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
   overflow: hidden;
 }
 .rcode-model-selector [data-slot="command"] {
-  max-height: min(68vh, 430px);
+  max-height: min(60vh, 420px);
   border-radius: inherit;
-  background: transparent !important;
-  padding: 0 !important;
+  background: transparent;
+  padding: 0;
   font-family: inherit;
 }
-.rcode-model-selector [data-slot="command-input-wrapper"],
+/* Search field: a quiet bordered input, not a filled card. The filled bar read
+   as a second surface inside the menu before any model was on screen; the
+   input rules in DESIGN.md want a calm field with a visible edge. The border
+   lives on the input-group alone - a second one on the outer wrapper would
+   draw a double rectangle - and focus-within carries the focus color here
+   because the global input:focus rule targets the borderless inner input. */
+.rcode-model-selector [data-slot="command-input-wrapper"] {
+  margin: 8px 8px 4px;
+  padding: 0;
+}
 .rcode-model-selector [data-slot="input-group"] {
-  border: 0 !important;
-  border-bottom: 1px solid var(--color-border) !important;
-  border-radius: 0 !important;
-  background: color-mix(in srgb, var(--color-bg) 70%, transparent) !important;
-  box-shadow: none !important;
-  margin: 0 !important;
-  padding: 10px 14px !important;
+  border: 1px solid var(--color-input-border);
+  border-radius: var(--radius-md);
+  background: transparent;
+  box-shadow: none;
+  padding: 0 10px;
+}
+.rcode-model-selector [data-slot="input-group"]:hover {
+  border-color: var(--color-input-border-hover);
+}
+.rcode-model-selector [data-slot="input-group"]:focus-within {
+  border-color: var(--color-input-border-focused);
 }
 .rcode-model-selector input,
 .rcode-model-selector [data-slot="command-input"] {
-  background: transparent !important;
-  color: var(--color-fg) !important;
-  font-size: 13px !important;
+  background: transparent;
+  color: var(--color-fg);
+  font-size: var(--text-ui-sm);
 }
 .rcode-model-selector input::placeholder {
-  color: var(--color-muted) !important;
+  color: var(--color-foreground-subtlest);
 }
-.rcode-effort-row {
-  display: flex;
+/* Reasoning effort: its own control beside the model picker. The old
+   effort band that lived inside the model panel was a second competing band
+   above the list; ZCode keeps thinking level separate for the same reason. */
+.rcode-effort-trigger {
+  flex: 0 0 auto;
   gap: 4px;
-  padding: 6px 10px;
-  border-bottom: 1px solid var(--color-border);
-  background: color-mix(in srgb, var(--color-fg) 4%, transparent);
-}
-.rcode-effort-pill {
-  flex: 1 1 0;
-  padding: 4px 6px;
-  border: 1px solid transparent;
-  border-radius: 7px;
-  font-size: 11px;
-  font-weight: 500;
-  cursor: pointer;
+  border: 0;
+  border-radius: var(--radius-md);
   background: transparent;
-  color: var(--color-muted);
-  transition: background 100ms ease, color 100ms ease, border-color 100ms ease;
-  text-align: center;
+  padding: 0 6px;
+  font-size: var(--text-ui-sm);
+  color: var(--color-foreground-subtle);
+  transition: background var(--duration-fast) var(--ease-out);
 }
-.rcode-effort-pill:hover {
-  background: color-mix(in srgb, var(--color-fg) 8%, transparent);
+.rcode-effort-trigger:hover {
+  background: var(--color-hover);
   color: var(--color-fg);
 }
-.rcode-effort-pill.active {
-  background: color-mix(in srgb, var(--color-accent) 18%, transparent);
-  border-color: color-mix(in srgb, var(--color-accent) 35%, transparent);
-  color: var(--color-accent);
+.rcode-effort-trigger-label {
+  color: inherit;
+  font-weight: 500;
+  line-height: 1;
 }
-.rcode-model-selector [data-slot="command-list"] {
-  padding: 6px 8px 10px !important;
+.rcode-effort-popup {
+  width: 168px;
+  padding: 4px;
+  border: 1px solid var(--color-popover-border);
+  background: var(--color-menu);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
 }
-.rcode-model-selector [cmdk-group-heading] {
-  padding: 10px 10px 6px !important;
-  font-size: 10px !important;
+.rcode-effort-popup-label {
+  padding: 5px 8px 4px;
+  font-size: var(--text-ui-2xs);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--color-muted) !important;
-  font-weight: 600 !important;
+  font-weight: 600;
+  color: var(--color-foreground-subtlest);
+}
+.rcode-effort-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 28px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  font-family: inherit;
+  font-size: var(--text-ui-base);
+  color: var(--color-foreground-subtle);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out);
+}
+.rcode-effort-option:hover {
+  background: var(--color-menu-hover);
+  color: var(--color-fg);
+}
+.rcode-effort-option.active {
+  color: var(--color-fg);
+  font-weight: 500;
+}
+.rcode-effort-option svg {
+  color: var(--color-foreground);
+}
+.rcode-model-selector [data-slot="command-list"] {
+  max-height: min(52vh, 360px);
+  padding: 4px;
+}
+.rcode-model-selector [cmdk-group-heading] {
+  padding: 6px 6px 3px;
+  font-size: var(--text-ui-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-foreground-subtlest);
+  font-weight: 600;
   background: transparent;
 }
+/* Single-line rows with air. ZCode sizes these min-h-8 with the model name and
+   a trailing badge; two-line rows were showing four models in a panel that fits
+   thirty. 34px/5px/2px instead of the old 28px/3px/1px - DESIGN.md fixes a 2px
+   vertical gap between adjacent menu rows, and 28px read as glued together. */
 .rcode-model-selector [data-slot="command-item"] {
-  padding: 8px 10px !important;
-  border-radius: 10px !important;
+  min-height: 34px;
+  padding: 5px 8px;
+  border-radius: var(--radius-md);
   margin-bottom: 2px;
-  cursor: pointer !important;
-  transition: background 0.12s ease, color 0.12s ease;
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out);
 }
 .rcode-model-selector [data-slot="command-item"]:hover,
 .rcode-model-selector [data-slot="command-item"][data-selected="true"] {
-  background: color-mix(in srgb, var(--color-fg) 8%, transparent) !important;
+  background: var(--color-hover);
 }
 .rcode-model-selector [data-slot="command-item"][data-checked="true"] {
-  background: color-mix(in srgb, var(--color-accent) 15%, transparent) !important;
+  background: var(--color-selected);
+}
+/* flex:1 so the row content takes the slack and the selected-row checkmark -
+   which CommandItem renders with ml-auto - actually has room to sit at the
+   right edge instead of being squeezed off. */
+.rcode-model-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.rcode-model-item-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-ui-base);
+  color: var(--color-foreground);
+}
+.rcode-model-item-meta {
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-ui-xs);
+  color: var(--color-foreground-subtlest);
+}
+
+/* Collapsible provider sections. The header keeps the old group heading's
+   typographic treatment (uppercase, tracked, quiet) so it still reads as a
+   section label, but it is a button now: chevron on the left rotating 90deg
+   when open, model count at the right edge. */
+.rcode-model-provider {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 30px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  font-family: inherit;
+  font-size: var(--text-ui-2xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-foreground-subtlest);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+.rcode-model-provider:hover,
+.rcode-model-provider:focus-visible {
+  background: var(--color-hover);
+  color: var(--color-foreground-subtle);
+}
+.rcode-model-provider-chevron {
+  flex: 0 0 auto;
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+.rcode-model-provider[data-open="true"] .rcode-model-provider-chevron {
+  transform: rotate(90deg);
+}
+.rcode-model-provider-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rcode-model-provider-count {
+  flex: 0 0 auto;
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Pin toggle on each row, between the meta chip and the selected-row
+   checkmark. Quietly visible rather than hover-only so the affordance is
+   discoverable; pinned rows fill the star. */
+.rcode-model-star {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-self: center;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-foreground-subtlest);
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out);
+}
+.rcode-model-star:hover,
+.rcode-model-star:focus-visible {
+  color: var(--color-fg);
+  background: var(--color-hover);
+}
+.rcode-model-star.pinned {
+  color: var(--color-fg);
+}
+.rcode-model-star.pinned .rcode-model-star-icon {
+  fill: currentColor;
+}
+
+/* Shown when a search matches nothing (or no provider is configured). cmdk's
+   own Empty is driven by its filter, which is off here. */
+.rcode-model-empty {
+  padding: 10px 8px 8px;
+  text-align: center;
+  font-size: var(--text-ui-xs);
+  color: var(--color-foreground-subtlest);
 }
 
 
@@ -3026,7 +3535,343 @@ body {
   align-items: center;
   justify-content: center;
   padding: 24px;
-  color: var(--color-muted);
+  color: var(--color-foreground-subtle);
   font-size: 12px;
   text-align: center;
+}
+
+/*
+ * --- Global focus indicator ----------------------------------------------
+ *
+ * This lives here, outside @layer base, on purpose.
+ *
+ * The @layer base block above (line ~237) is DEAD: its leading comment
+ * contains the character sequence that closes a CSS comment, in the middle of
+ * a list of utility names. That terminates the comment early, so the parser
+ * reads the remainder as one invalid rule and drops the whole block -
+ * including the :focus-visible outline and the input focus rules that were
+ * moved into it. Confirmed against the built CSS: that block's declarations
+ * are absent from the cascade entirely.
+ *
+ * So the focus outline that used to live in an unlayered rule (where it
+ * outranked every utility and forced border-radius:4px onto elements that had
+ * opted out - the "two nested squares" bug) is currently gone entirely, and
+ * plain buttons styled by the legacy class rules have no focus indicator at
+ * all. This restores it properly:
+ *
+ *   - no border-radius is set, so the outline follows each element's own
+ *     radius instead of overriding it;
+ *   - form controls opt out, because the prebuilt Input draws its own
+ *     border-ring + ring-3 and the InputGroup draws the ring for its
+ *     borderless inner control. A second indicator on those was the original
+ *     bug.
+ */
+:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-accent) 60%, transparent);
+  outline-offset: 2px;
+}
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+}
+
+/*
+ * --- Palette: one-ui (Samsung One UI 6/7 prototype preset) ---------------
+ *
+ * Everything One UI lives under this one block, keyed off the data-theme
+ * attribute applyTheme writes for the "one-ui" preset and off a plain .one-ui
+ * class the prototype page (oneui.html) uses to scope the same tokens to a
+ * subtree — light and dark render side by side there, one class each.
+ *
+ * Every declaration carries !important on purpose. applyTheme writes the
+ * Theme object's palette inline on documentElement, and inline styles beat any
+ * normal author rule; the !important is what makes this class the single
+ * authority for the One UI language instead of a half-applied overlay. The
+ * THEME_PRESETS entry in types.ts mirrors the dark values for the settings
+ * preview card, but this block wins wherever the two could disagree.
+ *
+ * Removal: delete this block, the "one-ui" entry in ThemePreset/THEME_PRESETS,
+ * the classList.toggle in applyTheme, and the card in ThemeSettings.
+ *
+ * Measured contrast (WCAG AA body-text floor 4.5:1, composited over the
+ * surfaces they actually sit on — live table on oneui.html):
+ *   dark  fg            15.45:1 on bg · 14.03:1 on surface
+ *         subtle  (65%)  7.00:1 on bg ·  6.63:1 on surface
+ *         subtlest(55%)  5.33:1 on bg ·  5.13:1 on surface
+ *   light fg            14.82:1 on bg · 16.46:1 on surface
+ *         subtle  (70%)  5.79:1 on bg ·  6.08:1 on surface
+ *         subtlest(63%)  4.63:1 on bg ·  4.82:1 on surface
+ * The light steps deviate from the 65%/55% starting point because 55%
+ * measures ~3.7:1 on #f2f3f5 — the same trap the zai-dark palette fell into
+ * and the reason this table exists. Dark keeps the spec's 65%/55%. Light
+ * accent #0064ff measures 4.43:1 on bg (AA large only) as text; light status
+ * colours measure 3.8–4.8:1 and are kept for One UI fidelity — they carry
+ * state on badges and icons, not body copy.
+ */
+
+[data-theme="one-ui"],
+.one-ui {
+  /* Surfaces. Four solid steps; hover/active stay alpha over whatever is
+     behind them, same scheme as the default palette. */
+  --color-bg: #111318 !important;
+  --color-surface: #1a1d23 !important;
+  --color-menu: #22262e !important;
+  --color-sidebar: #15181e !important;
+  --color-card: var(--color-surface) !important;
+  --color-popover: var(--color-menu) !important;
+  --color-input: var(--color-surface) !important;
+  --color-tab: var(--color-surface) !important;
+  --color-tab-active: var(--color-bg) !important;
+
+  /* Text ladder. */
+  --color-fg: #e8eaf0 !important;
+  --color-foreground-subtle: color-mix(in srgb, var(--color-fg) 65%, transparent) !important;
+  --color-foreground-subtlest: color-mix(in srgb, var(--color-fg) 55%, transparent) !important;
+  --color-muted: var(--color-foreground-subtle) !important;
+
+  /* One UI blue, lifted for dark ground. Blue is the brand here — unlike the
+     monochrome default, One UI's accent is allowed to carry chrome. */
+  --color-accent: #4d8dff !important;
+  --color-brand: var(--color-accent) !important;
+  --color-accent-soft: rgba(77, 141, 255, 0.14) !important;
+  --color-accent-muted: rgba(77, 141, 255, 0.07) !important;
+  --color-accent-tint: #001d3d !important;
+
+  /* Status. */
+  --color-success: #3ddc84 !important;
+  --color-warning: #ffb300 !important;
+  --color-danger: #ff6b6b !important;
+  --color-danger-soft: rgba(255, 107, 107, 0.14) !important;
+  --color-danger-muted: rgba(255, 107, 107, 0.07) !important;
+
+  /* Interaction fills. Selection stays a neutral surface step like the
+     default palette's white-alpha fill — the blue full-row wash read as a
+     decorative blob and is gone; selected rows keep their state markers. */
+  --color-hover: rgba(232, 234, 240, 0.07) !important;
+  --color-active: rgba(232, 234, 240, 0.12) !important;
+  --color-selected: rgba(232, 234, 240, 0.14) !important;
+  --color-menu-hover: #2b303a !important;
+
+  /* Borders. Focus takes the accent — One UI signals input focus with the
+     blue rather than the monochrome brand. */
+  --color-border: rgba(232, 234, 240, 0.12) !important;
+  --color-border-hover: rgba(232, 234, 240, 0.2) !important;
+  --color-card-border: rgba(232, 234, 240, 0.12) !important;
+  --color-popover-border: rgba(232, 234, 240, 0.12) !important;
+  --color-input-border: rgba(232, 234, 240, 0.14) !important;
+  --color-input-border-hover: rgba(232, 234, 240, 0.24) !important;
+  --color-input-border-focused: var(--color-accent) !important;
+
+  /* shadcn aliases for the prebuilt components. White on the #4d8dff fill is
+     One UI's own pairing (3.2:1 — AA large only, a fidelity trade the default
+     theme does not make); every body-text token above clears 4.5:1. */
+  --background: var(--color-bg) !important;
+  --foreground: var(--color-fg) !important;
+  --card: var(--color-surface) !important;
+  --card-foreground: var(--color-fg) !important;
+  --popover: var(--color-menu) !important;
+  --popover-foreground: var(--color-fg) !important;
+  --primary: var(--color-accent) !important;
+  --primary-foreground: #ffffff !important;
+  --secondary: var(--color-surface) !important;
+  --secondary-foreground: var(--color-fg) !important;
+  --muted: var(--color-surface) !important;
+  --muted-foreground: var(--color-foreground-subtle) !important;
+  --accent: var(--color-surface) !important;
+  --accent-foreground: var(--color-fg) !important;
+  --destructive: var(--color-danger) !important;
+  --destructive-foreground: #111318 !important;
+  --border: var(--color-border) !important;
+  --input: var(--color-input-border) !important;
+  --ring: var(--color-accent) !important;
+
+  --sidebar: var(--color-sidebar) !important;
+  --sidebar-foreground: var(--color-fg) !important;
+  --sidebar-primary: var(--color-accent) !important;
+  --sidebar-primary-foreground: #ffffff !important;
+  --sidebar-accent: var(--color-hover) !important;
+  --sidebar-accent-foreground: var(--color-fg) !important;
+  --sidebar-border: var(--color-border) !important;
+  --sidebar-ring: var(--color-accent) !important;
+
+  /* Elevation. One UI separates with surface steps first and soft shadows
+     second; slightly deeper than the default's hairline-only scheme. */
+  --shadow-md: 0 6px 16px -4px rgb(0 0 0 / 0.5), 0 2px 8px -2px rgb(0 0 0 / 0.35) !important;
+  --shadow-lg: 0 16px 40px -8px rgb(0 0 0 / 0.6), 0 6px 16px -6px rgb(0 0 0 / 0.4) !important;
+  --color-shadow: rgb(0 0 0 / 0.45) !important;
+
+  /*
+   * Shape. One UI is far rounder than Tailwind's 4/6/8/12 baseline:
+   * controls 8/12, cards and panels 16, large containers 24. applyTheme
+   * derives its own ladder from theme.radius, so these four override it.
+   */
+  --radius-sm: 8px !important;
+  --radius-md: 12px !important;
+  --radius: 16px !important;
+  --radius-lg: 16px !important;
+  --radius-xl: 24px !important;
+
+  /*
+   * Type. One UI is light-first: the body step moves 14 -> 15px and the
+   * text-ui-* scale spreads wider around it. --font-scale (the settings
+   * slider) still multiplies through. Line height is set on body below.
+   */
+  --ui-font-size: calc(15px * var(--font-scale)) !important;
+  --text-ui-xl: calc(var(--ui-font-size) + 6px) !important;
+  --text-ui-lg: calc(var(--ui-font-size) + 4px) !important;
+  --text-ui-base: var(--ui-font-size) !important;
+  --text-ui-caption: calc(var(--ui-font-size) - 1px) !important;
+  --text-ui-sm: calc(var(--ui-font-size) - 2px) !important;
+  --text-ui-xs: calc(var(--ui-font-size) - 3px) !important;
+  --text-ui-2xs: calc(var(--ui-font-size) - 4px) !important;
+
+  /*
+   * Motion. Springy where the default palette is flat: slower durations and
+   * an overshoot curve for entrances. --ease-out stays a plain decel for
+   * colour/hover transitions — overshoot belongs to things that move, not to
+   * things that fade.
+   */
+  --duration-fast: 200ms !important;
+  --duration-normal: 300ms !important;
+  --duration-slow: 450ms !important;
+  --duration-panel: 300ms !important;
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+
+/* One UI light — same preset with darkMode: false, which applyTheme surfaces
+   as data-mode="light"; the prototype page scopes it with .one-ui-light. */
+[data-theme="one-ui"][data-mode="light"],
+.one-ui-light {
+  --color-bg: #f2f3f5 !important;
+  --color-surface: #ffffff !important;
+  --color-menu: #ffffff !important;
+  --color-sidebar: #f7f8fa !important;
+  --color-card: var(--color-surface) !important;
+  --color-popover: var(--color-menu) !important;
+  --color-input: var(--color-surface) !important;
+  --color-tab: var(--color-surface) !important;
+  --color-tab-active: var(--color-bg) !important;
+
+  --color-fg: #1b1f2a !important;
+  --color-foreground-subtle: color-mix(in srgb, var(--color-fg) 70%, transparent) !important;
+  --color-foreground-subtlest: color-mix(in srgb, var(--color-fg) 63%, transparent) !important;
+  --color-muted: var(--color-foreground-subtle) !important;
+
+  --color-accent: #0064ff !important;
+  --color-brand: var(--color-accent) !important;
+  --color-accent-soft: rgba(0, 100, 255, 0.1) !important;
+  --color-accent-muted: rgba(0, 100, 255, 0.05) !important;
+  --color-accent-tint: #e8f0ff !important;
+
+  --color-success: #1e8e3e !important;
+  --color-warning: #b26a00 !important;
+  --color-danger: #d93025 !important;
+  --color-danger-soft: rgba(217, 48, 37, 0.1) !important;
+  --color-danger-muted: rgba(217, 48, 37, 0.05) !important;
+
+  --color-hover: rgba(27, 31, 42, 0.04) !important;
+  --color-active: rgba(27, 31, 42, 0.08) !important;
+  --color-selected: rgba(27, 31, 42, 0.1) !important;
+  --color-menu-hover: #f0f2f6 !important;
+
+  --color-border: rgba(27, 31, 42, 0.1) !important;
+  --color-border-hover: rgba(27, 31, 42, 0.16) !important;
+  --color-card-border: rgba(27, 31, 42, 0.1) !important;
+  --color-popover-border: rgba(27, 31, 42, 0.1) !important;
+  --color-input-border: rgba(27, 31, 42, 0.12) !important;
+  --color-input-border-hover: rgba(27, 31, 42, 0.18) !important;
+  --color-input-border-focused: var(--color-accent) !important;
+
+  --background: var(--color-bg) !important;
+  --foreground: var(--color-fg) !important;
+  --card: var(--color-surface) !important;
+  --card-foreground: var(--color-fg) !important;
+  --popover: var(--color-menu) !important;
+  --popover-foreground: var(--color-fg) !important;
+  --primary: var(--color-accent) !important;
+  --primary-foreground: #ffffff !important;
+  --secondary: var(--color-surface) !important;
+  --secondary-foreground: var(--color-fg) !important;
+  --muted: var(--color-surface) !important;
+  --muted-foreground: var(--color-foreground-subtle) !important;
+  --accent: var(--color-surface) !important;
+  --accent-foreground: var(--color-fg) !important;
+  --destructive: var(--color-danger) !important;
+  --destructive-foreground: #ffffff !important;
+  --border: var(--color-border) !important;
+  --input: var(--color-input-border) !important;
+  --ring: var(--color-accent) !important;
+
+  --sidebar: var(--color-sidebar) !important;
+  --sidebar-foreground: var(--color-fg) !important;
+  --sidebar-primary: var(--color-accent) !important;
+  --sidebar-primary-foreground: #ffffff !important;
+  --sidebar-accent: var(--color-hover) !important;
+  --sidebar-accent-foreground: var(--color-fg) !important;
+  --sidebar-border: var(--color-border) !important;
+  --sidebar-ring: var(--color-accent) !important;
+
+  --shadow-md: 0 6px 16px -4px rgb(0 0 0 / 0.12), 0 2px 6px -2px rgb(0 0 0 / 0.08) !important;
+  --shadow-lg: 0 16px 40px -8px rgb(0 0 0 / 0.16), 0 6px 16px -6px rgb(0 0 0 / 0.08) !important;
+  --color-shadow: rgb(0 0 0 / 0.12) !important;
+}
+
+/* One UI line height. Inherited everywhere the class or attribute scope
+   reaches; body keeps the stock 1.5 in every other theme. */
+[data-theme="one-ui"] body,
+.one-ui {
+  line-height: 1.55;
+}
+
+/*
+ * Primary fills. Tailwind's text-primary-foreground utility resolves to
+ * var(--color-bg) via the @theme inline mapping, so a light-mode button label
+ * is #f2f3f5 on #0064ff = 4.44:1, a hair under the AA floor measured
+ * everywhere else in this theme. Pure white on the same blue is 4.92:1.
+ * Dark keeps the near-black label: on the lifted #4d8dff it measures 5.9:1,
+ * while One UI's own white-on-blue pairing would measure 3.2:1 — the AA floor
+ * wins over screenshot fidelity there.
+ */
+.one-ui-light .bg-primary,
+[data-theme="one-ui"][data-mode="light"] .bg-primary {
+  color: #ffffff;
+}
+
+/*
+ * One UI rhythm in the running app. The prototype page demonstrates the full
+ * 48px target height; these rules lift only the densest lists and menus so
+ * picking the preset in Settings already reads as One UI without rebuilding
+ * the shell. The Playwright suite runs against the default theme, so none of
+ * this is on the regression path.
+ */
+[data-theme="one-ui"] .session-item {
+  min-height: 48px;
+  border-radius: var(--radius-md);
+}
+[data-theme="one-ui"] .sidebar-nav-btn,
+[data-theme="one-ui"] .settings-sidebar-item,
+[data-theme="one-ui"] .sidepanel-menu-item,
+[data-theme="one-ui"] .context-menu-item,
+[data-theme="one-ui"] .rcode-model-selector [data-slot="command-item"],
+[data-theme="one-ui"] .rcode-mode-popup [data-slot="select-item"],
+[data-theme="one-ui"] .rcode-effort-option {
+  min-height: 44px;
+}
+[data-theme="one-ui"] .rcode-model-provider {
+  min-height: 40px;
+}
+/* Small and icon buttons keep their sizes; everything else grows to a
+   One UI-sized target. */
+[data-theme="one-ui"] [data-slot="button"]:not(.h-6):not(.h-7) {
+  min-height: 44px;
+}
+
+/* Entrances spring. Panel content, dialogs, popovers and menus all arrive on
+   the overshoot curve; hovers keep the plain decel. */
+[data-theme="one-ui"] .panel-sessions > *,
+[data-theme="one-ui"] .radix-dialog-content,
+[data-theme="one-ui"] .sp-menu,
+[data-theme="one-ui"] [data-radix-popper-content-wrapper] > * {
+  animation-timing-function: var(--ease-spring);
 }

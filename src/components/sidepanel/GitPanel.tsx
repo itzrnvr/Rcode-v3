@@ -65,11 +65,11 @@ export function GitPanel() {
           <button className="btn" style={{ flex: 1 }} disabled={busy != null} onClick={() => act("commit")}>{busy === "commit" ? "Committing…" : "Commit"}</button>
           <button className="btn" style={{ flex: 1 }} disabled={busy != null} onClick={() => act("push")}>{busy === "push" ? "Pushing…" : "Push"}</button>
         </div>
-        {note && <div style={{ fontSize: 11, color: "var(--color-muted, #8a8a8a)", fontFamily: "monospace" }}>{note}</div>}
+        {note && <div style={{ fontSize: 11, color: "var(--color-foreground-subtle, #8a8a8a)", fontFamily: "monospace" }}>{note}</div>}
       </div>
 
       <div style={{ flex: 1, overflowY: "auto", padding: "0 12px 12px" }}>
-        {(st?.files ?? []).length === 0 && <div style={{ fontSize: 12, color: "var(--color-muted, #8a8a8a)", padding: 8 }}>Working tree clean.</div>}
+        {(st?.files ?? []).length === 0 && <div style={{ fontSize: 12, color: "var(--color-foreground-subtle, #8a8a8a)", padding: 8 }}>Working tree clean.</div>}
         {(st?.files ?? []).map((f, i) => (
           <div key={i} style={{ display: "flex", gap: 8, alignItems: "center", padding: "4px 2px", fontSize: 11.5 }}>
             <span style={{

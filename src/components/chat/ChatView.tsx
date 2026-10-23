@@ -24,7 +24,6 @@ import {
   CompassIcon,
   FolderIcon,
   GitForkIcon,
-  SparkleIcon,
 } from "../common/Icons";
 
 const QUICK_PROMPTS = [
@@ -289,7 +288,6 @@ export function ChatView() {
     <>
       <ConversationEmptyState
         description="Ask me to write code, brainstorm, debug, explain… or anything else."
-        icon={<SparkleIcon size={44} />}
         title="What's on your mind?"
       />
       <div className="rcode-quick-prompts">
@@ -321,43 +319,13 @@ export function ChatView() {
           </button>
         )}
         <span className="chat-title">{session?.title ?? "New chat"}</span>
-        {!isMobile && <HeaderPills />}
+        {/*
+         * Project, branch, trajectory and the overflow menu are removed for
+         * v1 - the header carried four controls for one title, and the
+         * desktop "More" button had no handler at all. Additive to restore.
+         */}
         {session && session.depth > 0 && (
           <span className="chat-depth">depth {session.depth}</span>
-        )}
-        {!isMobile && (
-          <button
-            className="chat-header-toggle"
-            title="Open trajectory viewer"
-            onClick={openTrajectoryViewer}
-          >
-            <ActivityIcon size={14} />
-          </button>
-        )}
-        <button className="chat-header-toggle" title="More">
-          <ChevronDownIcon size={14} />
-        </button>
-        {isMobile && (
-          <div className="chat-header-overflow-anchor" ref={headerOverflowRef}>
-            <button
-              className="chat-header-toggle"
-              title="More"
-              onClick={() => setHeaderOverflowOpen(o => !o)}
-              aria-expanded={headerOverflowOpen}
-            >
-              <ChevronDownIcon size={14} />
-            </button>
-            {headerOverflowOpen && (
-              <div className="chat-header-overflow" role="menu">
-                <HeaderPillsOverflowMenu
-                  onOpenTrajectory={() => {
-                    setHeaderOverflowOpen(false);
-                    openTrajectoryViewer();
-                  }}
-                />
-              </div>
-            )}
-          </div>
         )}
       </div>
 

@@ -69,9 +69,13 @@ export function SessionList({ collapsed, onToggleCollapse, width }: SessionListP
   } = useApp();
   const { sessions, loading, deleteSession } = useSessions(sessionListVersion);
   const [menu, setMenu] = useState<{ x: number; y: number; sessionId: string } | null>(null);
+  // Pinned and Projects default to collapsed: both are empty on a fresh
+  // install, and two empty sections with "No pinned chats" / "No projects"
+  // under them pushed the session list - the only thing this sidebar is for -
+  // below the fold. Recents stays open because that is the content.
   const [recentsOpen, setRecentsOpen] = useState(true);
-  const [pinnedOpen, setPinnedOpen] = useState(true);
-  const [projectsOpen, setProjectsOpen] = useState(true);
+  const [pinnedOpen, setPinnedOpen] = useState(false);
+  const [projectsOpen, setProjectsOpen] = useState(false);
   const [activeNav, setActiveNav] = useState("chat");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
@@ -174,7 +178,11 @@ export function SessionList({ collapsed, onToggleCollapse, width }: SessionListP
   return (
     <div className="panel-sessions">
 
-      {/* Codex nav — matches screenshot */}
+      {/*
+        Only New chat for now. Pull requests, Scheduled and Plugins were empty
+        onClick handlers - navigation to nowhere - so they read as features that
+        existed. Removed until they do something.
+      */}
       <div className="sidebar-section codex-nav">
         <button
           className={`sidebar-nav-btn ${activeNav === "new" ? "active" : ""}`}
@@ -182,28 +190,6 @@ export function SessionList({ collapsed, onToggleCollapse, width }: SessionListP
         >
           <PlusIcon size={16} />
           <span className="sidebar-nav-btn-label">New chat</span>
-          <kbd className="sidebar-kbd">⌘N</kbd>
-        </button>
-        <button
-          className="sidebar-nav-btn"
-          onClick={() => {}}
-        >
-          <CompassIcon size={16} />
-          <span className="sidebar-nav-btn-label">Pull requests</span>
-        </button>
-        <button
-          className="sidebar-nav-btn"
-          onClick={() => {}}
-        >
-          <HistoryIcon size={16} />
-          <span className="sidebar-nav-btn-label">Scheduled</span>
-        </button>
-        <button
-          className="sidebar-nav-btn"
-          onClick={() => {}}
-        >
-          <SparkleIcon size={16} />
-          <span className="sidebar-nav-btn-label">Plugins</span>
         </button>
       </div>
       {/* Search — Codex-style button */}
@@ -216,7 +202,6 @@ export function SessionList({ collapsed, onToggleCollapse, width }: SessionListP
         >
           <SearchIcon size={16} />
           <span className="sidebar-nav-btn-label">Search</span>
-          <kbd className="sidebar-kbd">⌘K</kbd>
         </button>
       </div>
 
@@ -229,7 +214,7 @@ export function SessionList({ collapsed, onToggleCollapse, width }: SessionListP
         <span className="sidebar-section-title">Pinned</span>
         <ChevronDownIcon
           size={12}
-          className={pinnedOpen ? "" : "rotate-90"}
+          className={pinnedOpen ? "" : "chevron-closed"}
         />
       </button>
       {pinnedOpen && (() => {
@@ -273,7 +258,7 @@ export function SessionList({ collapsed, onToggleCollapse, width }: SessionListP
         <span className="sidebar-section-title">Projects</span>
         <ChevronDownIcon
           size={12}
-          className={projectsOpen ? "" : "rotate-90"}
+          className={projectsOpen ? "" : "chevron-closed"}
         />
       </button>
       {projectsOpen && <div className="sidebar-empty-hint">No projects</div>}
@@ -287,7 +272,7 @@ export function SessionList({ collapsed, onToggleCollapse, width }: SessionListP
         <span className="sidebar-section-title">Recents</span>
         <ChevronDownIcon
           size={12}
-          className={recentsOpen ? "" : "rotate-90"}
+          className={recentsOpen ? "" : "chevron-closed"}
         />
       </button>
 

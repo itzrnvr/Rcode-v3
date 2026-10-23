@@ -170,21 +170,21 @@ export function ModelSettings() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 0, height: "100%" }}>
-      <div style={{ padding: "20px 28px 12px", color: "var(--color-muted)", fontSize: 13 }}>
+      <div style={{ padding: "20px 28px 12px", color: "var(--color-foreground-subtle)", fontSize: 13 }}>
         Manage custom model providers. Once configured, they can be selected during chat.
       </div>
 
       <div style={{ flex: 1, display: "flex", minHeight: 0, padding: "0 28px 20px" }}>
         {/* Left: providers */}
         <div style={{ width: 240, borderRight: "1px solid var(--color-border)", paddingRight: 14, overflowY: "auto" }}>
-          <div style={{ fontSize: 12, color: "var(--color-muted)", padding: "8px 6px" }}>Providers</div>
+          <div style={{ fontSize: 12, color: "var(--color-foreground-subtle)", padding: "8px 6px" }}>Providers</div>
           {providers.filter(p => !p.isCustom).map(p => (
             <button key={p.id} onClick={() => setSelectedId(p.id)} className="ms-provider-row" style={{ background: selectedId === p.id ? "var(--color-bg-tertiary)" : "transparent" }}>
               <span style={{ flex: 1, textAlign: "left" }}>{p.name}</span>
               <span style={{ width: 7, height: 7, borderRadius: 999, background: p.enabled ? "#22c55e" : "#52525b" }} />
             </button>
           ))}
-          <div style={{ fontSize: 12, color: "var(--color-muted)", padding: "14px 6px 8px" }}>Custom providers</div>
+          <div style={{ fontSize: 12, color: "var(--color-foreground-subtle)", padding: "14px 6px 8px" }}>Custom providers</div>
           {providers.filter(p => p.isCustom).map(p => (
             <button key={p.id} onClick={() => setSelectedId(p.id)} className="ms-provider-row" style={{ background: selectedId === p.id ? "var(--color-bg-tertiary)" : "transparent" }}>
               <span style={{ flex: 1, textAlign: "left" }}>{p.name}</span>
@@ -199,7 +199,7 @@ export function ModelSettings() {
         {/* Right: editor */}
         <div style={{ flex: 1, paddingLeft: 20, overflowY: "auto" }}>
           {!selected ? (
-            <div style={{ color: "var(--color-muted)", marginTop: 40, textAlign: "center" }}>Select a provider</div>
+            <div style={{ color: "var(--color-foreground-subtle)", marginTop: 40, textAlign: "center" }}>Select a provider</div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 720 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -222,7 +222,7 @@ export function ModelSettings() {
                 {selected.enabled ? (
                   <span style={{ padding: "4px 12px", borderRadius: 999, background: "#17B88B", color: "#052e1c", fontSize: 12, fontWeight: 700 }}>Enabled</span>
                 ) : (
-                  <span style={{ padding: "4px 12px", borderRadius: 999, background: "var(--color-bg-tertiary)", color: "var(--color-muted)", fontSize: 12, fontWeight: 700 }}>Disabled</span>
+                  <span style={{ padding: "4px 12px", borderRadius: 999, background: "var(--color-bg-tertiary)", color: "var(--color-foreground-subtle)", fontSize: 12, fontWeight: 700 }}>Disabled</span>
                 )}
                 <button className="ms-btn" onClick={toggleEnabled}>{selected.enabled ? "Disable" : "Enable"}</button>
                 <button className="ms-iconbtn" style={{ marginLeft: "auto", color: "var(--color-danger)" }} title="Delete provider" onClick={deleteProvider}><TrashIcon size={14} /></button>

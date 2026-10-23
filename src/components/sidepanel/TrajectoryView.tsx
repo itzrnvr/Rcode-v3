@@ -318,7 +318,7 @@ export function TrajectoryView({ sessionId }: { sessionId: string | null }) {
     URL.revokeObjectURL(a.href);
   };
 
-  if (!sessionId) return <div style={{ color: "var(--color-muted)", padding: 20, fontSize: 12 }}>Open a session to see its trajectory.</div>;
+  if (!sessionId) return <div style={{ color: "var(--color-foreground-subtle)", padding: 20, fontSize: 12 }}>Open a session to see its trajectory.</div>;
 
   const mono = "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
   const activeRange = draft ? { a: Math.min(draft.a, draft.b), b: Math.max(draft.a, draft.b) } : range;
@@ -425,8 +425,8 @@ export function TrajectoryView({ sessionId }: { sessionId: string | null }) {
 
       {/* Event list */}
       <div ref={listRef} style={{ flex: 1, overflowY: "auto", padding: "6px 6px" }}>
-        {rows.length === 0 && <div style={{ color: "var(--color-muted)", fontSize: 12, padding: 12 }}>No trace yet — send a message to start recording.</div>}
-        {rows.length > 0 && filtered.length === 0 && <div style={{ color: "var(--color-muted)", fontSize: 12, padding: 12 }}>No events in the selected range.</div>}
+        {rows.length === 0 && <div style={{ color: "var(--color-foreground-subtle)", fontSize: 12, padding: 12 }}>No trace yet — send a message to start recording.</div>}
+        {rows.length > 0 && filtered.length === 0 && <div style={{ color: "var(--color-foreground-subtle)", fontSize: 12, padding: 12 }}>No events in the selected range.</div>}
 
         {view !== "turns" && filtered.map(r => (
           <div key={r.key}>
@@ -486,7 +486,7 @@ export function TrajectoryView({ sessionId }: { sessionId: string | null }) {
                 <span style={{ width: 7, height: 7, borderRadius: 999, background: "#e04343" }} />
                 <span style={{ fontWeight: 700, fontSize: 12 }}>Turn {turn}</span>
                 {rs.filter(r => r.e.kind === "response").map((r, i) => (
-                  <span key={i} style={{ fontSize: 10, color: "var(--color-muted)", fontFamily: mono }}>r{String(r.e.round)} {fmtMs(Number(r.e.totalMs ?? 0))}</span>
+                  <span key={i} style={{ fontSize: 10, color: "var(--color-foreground-subtle)", fontFamily: mono }}>r{String(r.e.round)} {fmtMs(Number(r.e.totalMs ?? 0))}</span>
                 ))}
               </div>
               {rs.filter(r => ["reasoning", "tool_call", "content", "user"].includes(r.e.kind)).map(r => (

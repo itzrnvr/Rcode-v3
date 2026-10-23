@@ -41,6 +41,8 @@ import {
   RefreshCw,
   Zap,
   Sparkles,
+  Star,
+  Gauge,
   Check,
   Pencil,
   User,
@@ -165,8 +167,12 @@ export const RefreshIcon = (p: { size?: number; className?: string }) =>
   <RefreshCw size={p.size ?? DEFAULT_SIZE} className={p.className} strokeWidth={2} />;
 export const ZapIcon = (p: { size?: number; className?: string }) =>
   <Zap size={p.size ?? DEFAULT_SIZE} className={p.className} strokeWidth={2} />;
+export const GaugeIcon = (p: { size?: number; className?: string }) =>
+  <Gauge size={p.size ?? DEFAULT_SIZE} className={p.className} strokeWidth={2} />;
 export const SparkleIcon = (p: { size?: number; className?: string }) =>
   <Sparkles size={p.size ?? DEFAULT_SIZE} className={p.className} strokeWidth={2} />;
+export const StarIcon = (p: { size?: number; className?: string }) =>
+  <Star size={p.size ?? DEFAULT_SIZE} className={p.className} strokeWidth={2} />;
 export const CheckIcon = (p: { size?: number; className?: string }) =>
   <Check size={p.size ?? DEFAULT_SIZE} className={p.className} strokeWidth={2.5} />;
 export const PenIcon = (p: { size?: number; className?: string }) =>
