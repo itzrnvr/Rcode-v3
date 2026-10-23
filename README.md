@@ -6,10 +6,35 @@ Rcode owns its own agent. There is no external agent backend and no fallback —
 
 ## Status
 
-The agent loop is **not implemented yet**. `electron/agent/engine.ts` defines the
-`AgentEngine` contract that `ipc/chat.ts` consumes; `getEngine()` throws until it
-is satisfied. Everything above the agent is built and working — transcript,
-persistence, retry/version branching, tracing, trajectory, settings, side chats.
+The agent backend is Rcode's own, implemented end to end in `electron/agent/`:
+
+- **`engine.ts`** — the contract `ipc/chat.ts` consumes: `AgentEngine`
+  (runTurn / resetToAnchor / compact), the `StreamEvent` set (text, reasoning,
+  tool_start, tool_end, usage, assistant_end), `EngineTool`, `TurnRequest`.
+- **`provider.ts`** — the OpenAI-compatible streaming client. POSTs
+  `stream: true` to `/chat/completions`, parses the SSE stream into
+  StreamEvents, and runs the tool loop across rounds. Dependency-free — global
+  fetch plus a TextDecoder. Every round ends with one `assistant_end` carrying
+  canonical blocks, which repairs arbitrarily fragmented reasoning/text
+  interleaving (the `F`/`ORK-OK` case).
+- **`tools.ts`** — the v1 tool surface: `read_file`, `write_file`, `edit_file`,
+  `list_dir`, `grep`, `shell`. Every file operation is confined to the
+  session's project directory, symlink-checked; results are size-capped and
+  every truncation says what was withheld.
+- **`loop.ts`** — the `AgentEngine` implementation. Rebuilds each turn's
+  request context from SQLite history so the model sees what the user sees
+  (edits, version switches, restores included), arms retry anchors, persists
+  compaction summaries as settings, and logs the per-round trace entries the
+  Trajectory view renders.
+
+The composer's access mode gates the tool set per turn: **full-access** runs
+all six tools, **plan** is read-only (writes and shell refuse and ask the model
+to propose instead of act), **restricted** confines file operations to a
+configured path allowlist and refuses shell outright — with no allowlist
+configured, restricted mode allows nothing (fail closed).
+
+Everything around the agent is built and working — transcript, persistence,
+retry/version branching, tracing, trajectory, settings, side chats.
 
 ## Features
 
@@ -94,7 +119,8 @@ src/
     dev/          Gallery — every component in isolation, no backend
   state/          AppContext, useChat, useSessions, useSideChats
 electron/
-  agent/          engine.ts (AgentEngine contract), trace.ts
+  agent/          engine.ts (AgentEngine contract), provider.ts, tools.ts,
+                  loop.ts, trace.ts
   chat/           systemPrompt
   db/             sessions, messages, sideChats, providers, settings
   ipc/            one module per domain, registered in ipc/index.ts
