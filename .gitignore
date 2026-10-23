@@ -1,14 +1,24 @@
 node_modules
 dist
-refs/
-*.ps1
-*.mjs
-!electron/agent/pi-worker.mjs
-*.cjs
+
+# Debug screenshot captures land in the repo root during UI work.
+# assets/ holds the tracked app icon and is unaffected.
+/*.png
+
 *.log
+*.ps1
+*.cjs
+*.tsbuildinfo
 .env*
+
+# Build artifacts and native modules
 *.db
 *.db-journal
+
 .DS_Store
 .just-scrape/
 .project-context/zcode-side-chat-backup/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/

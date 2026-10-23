@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en" class="one-ui">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rcode — One UI Prototype</title>
+</head>
+<body>
+  <div id="root"></div>
+  <!--
+    One UI prototype. Renders the Rcode app shell restyled with the Samsung
+    One UI 6/7 design language, in isolation with mock data: no backend, no
+    Electron bridge, no window.electron. Dark is the primary presentation — the
+    page itself mounts under .one-ui (dark) so the heading, chips and document
+    background speak the same language as the dark shell — and the light variant
+    renders alongside as the comparison column.
+    The tokens live in the [data-theme="one-ui"] / .one-ui block at the end of
+    index.css; this page scopes them per column with .one-ui / .one-ui-light.
+  -->
+  <script type="module" src="/src/oneui-main.tsx"></script>
+</body>
+</html>

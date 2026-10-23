@@ -1,0 +1,21 @@
+/*
+ * Overrides index.css's fixed app shell for this page only.
+ *
+ * index.css pins html/body/#root to height:100% with overflow:hidden so the
+ * app's panes scroll internally rather than the document. The gallery is an
+ * ordinary scrolling document, so it needs the document to scroll. Import this
+ * AFTER index.css so it wins the cascade — inline styles in gallery.html lose
+ * because Vite injects index.css later.
+ *
+ * overflow must be `visible`, not `auto`. Any overflow value other than
+ * visible on #root makes it a scroll container, and position:sticky then
+ * resolves against that container's scrollport instead of the viewport — which
+ * silently pinned the section nav to the top of the document and let it scroll
+ * away instead of following the reader down a long page.
+ */
+html,
+body,
+#root {
+  height: auto;
+  overflow: visible;
+}
