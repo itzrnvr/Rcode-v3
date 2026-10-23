@@ -18,6 +18,8 @@
       console.warn("Rcode preview bridge unavailable", error);
     }
   </script>
-  <script type="module" src="/src/preview-main.tsx"></script>
+  <!-- Same entry as index.html. The preview differs only by the bridge shim
+       above, so a separate entry module would rebuild the entire app graph. -->
+  <script type="module" src="/src/main.tsx"></script>
 </body>
 </html>

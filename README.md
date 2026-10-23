@@ -2,66 +2,145 @@
 
 Minimal, fast desktop AI coding assistant. Native, local-first, with persistent side chats and a Codex-inspired composer.
 
-![Rcode screenshot](./refs/chat-polished.png)
+Rcode owns its own agent. There is no external agent backend and no fallback — the tool loop, context assembly and compaction live in this repo, so the harness stays stable while you iterate on models and evaluation.
+
+## Status
+
+The agent loop is **not implemented yet**. `electron/agent/engine.ts` defines the
+`AgentEngine` contract that `ipc/chat.ts` consumes; `getEngine()` throws until it
+is satisfied. Everything above the agent is built and working — transcript,
+persistence, retry/version branching, tracing, trajectory, settings, side chats.
 
 ## Features
 
 - **Persistent chats** — SQLite-backed sessions, side chats that survive restarts, promote to main
 - **Nested side chats** — thread depth indicators, breadcrumb back
-- **Codex-style composer** — `+` attach, `Full access` / `Plan` modes, model pill (`MiniMax-H3`, `Qwen`, `GLM`), mic + send
-- **Rich thread** — markdown (GFM tables, lists), syntax highlighted code blocks with copy, reasoning/think blocks, tool-call pills
-- **Message actions** — hover footer `Copy / Edit / Delete`, inline edit with `Save/Cancel`
-- **Sessions** — pin to top, inline rename, archive, drag to reorder (persisted `sort_order`)
-- **Settings** — full page with `API / Theme / Model / Modes / Hotkeys / Data / About`, searchable, resizable sidebar, polished sliders
-- **Theming** — 4 presets (`zcode-blue`, `unsloth-mint`, `classic-dark`, `light-classic`) + live CSS vars, translucent sidebar, contrast
-- **Local-first** — Electron + React + Radix primitives, `better-sqlite3` WAL, OpenAI-compatible proxy (`3459/v1`)
+- **Typed turns** — reasoning, response, tool_call and tool_result persisted as ordered events; tool results are turn-segment boundaries
+- **Retry versioning** — retry replaces its target in place and archives the tail per version; version arrows restore it
+- **Session forking** — fork from any message into a real side chat
+- **Trajectory viewer** — full request/response JSONL trace, timeline with zoom/brush, inspector
+- **Side panel** — Terminal (node-pty), embedded Browser preview, Review, Git
+- **Annotation** — in-app screenshot markup with pen/arrow/box and numbered element picking
+- **Composer** — access mode, model picker, reasoning effort, slash commands, steering queue
+- **Theming** — 4 presets with live CSS vars, translucent sidebar, font scaling
+- **Runs in a browser** — the full UI against the same backend at `http://127.0.0.1:5173`
 
 ## Tech
 
-- Electron 33 + React 19 + Vite 6 + Tailwind 3 + Radix UI + lucide-react
-- `react-markdown` + `remark-gfm` + `rehype-highlight` + `highlight.js` (github-dark)
-- SQLite via `better-sqlite3`, Tauri-style window chrome
+Electron 44 · React 19 · Vite 6 · Tailwind 3 · Radix + Base UI · streamdown + shiki · SQLite via `better-sqlite3` (WAL) · node-pty
 
 ## Quick start
 
 ```bash
 npm install
-npm run build   # tsc -p tsconfig.node.json && vite build
-npx electron . --remote-debugging-port=9222
+npm run build          # tsc -p tsconfig.node.json && vite build
+npm run dev            # vite on 5173 + electron
 ```
 
-Dev with HMR:
+Electron loads `dist/renderer/index.html` when it exists, otherwise the Vite dev server.
+
+### UI development runs in the browser
+
+For UI work, run the browser-only loop:
 
 ```bash
-npm run dev
-# vite on 5173 + electron
+npm run dev:web    # Vite + a headless backend, no Electron window
 ```
 
-## Settings
+Open `http://127.0.0.1:5173`. The Electron window is reserved for window-chrome
+work — titlebar, traffic lights, tray.
 
-- `API` — `apiBase` (default `http://127.0.0.1:3459/v1`), `apiKey`, `model`, `providerName`
-- `Theme` — presets, accent/background/surface/sidebar/border/muted, fonts, `fontSizeScale` (1.08 default, `calc(15px * var(--font-scale))`), radius
-- Model picker in composer shows `6 available` and writes to `settings.model`
+**`gallery.html`** at `http://127.0.0.1:5173/gallery.html` renders components in
+isolation against mock data, with no backend and no Electron bridge. Use it to
+build, review and customise components without running the app, and extend it
+when a component or its states change. A component that needs the app shell to
+mount is a defect — components reach `window.electron` optionally at render time.
+
+`strictPort` is on, so a busy 5173 fails loudly instead of falling through to
+5174, which is the API server.
+
+The browser API server also runs on `127.0.0.1:5174`, exposing the same handler registry as Electron IPC with SSE streaming, proxied by Vite at `/api/ipc`, `/api/events`, `/api/health`.
+
+### Native modules
+
+`better-sqlite3` and `node-pty` ship prebuilt binaries but need their install
+scripts allowed. `package.json` pins them in `allowScripts` — if you bump either
+dependency, update that map too or npm silently skips the native step.
+
+## State
+
+All state lives under `~/.rcode` (override with `RCODE_HOME`):
+
+```
+data/rcode.db     SQLite: sessions, messages, turn_versions, providers, settings
+traces/           per-session agent request/response JSONL
+feedback/         saved UI annotations
+electron/         Chromium profile
+```
 
 ## Project structure
 
 ```
 src/
-  api/           # typed IPC client
+  api/            typed client; browserElectron.ts adapts the web bridge
   components/
-    chat/        # ChatView, ChatMessage (markdown), ChatInput (composer)
-    common/      # Icons (lucide only), Toggle
-    layout/      # AppShell, TitleBar (traffic lights), resizers
-    sessions/    # SessionList (pin/rename/archive + drag)
-    settings/    # SettingsPage, ThemeSettings
-    sidepanel/   # SidePanel tabs
-  state/         # AppContext, useChat, useSessions, useSideChats, useSettings
-  hooks/         # useTheme
+    ai-elements/  vendored shadcn primitives (conversation, message, reasoning, tool)
+    chat/         AgentConversation / AgentMessage / AgentTurnView / AgentPromptInput
+    layout/       AppShell, TitleBar
+    sessions/     SessionList
+    settings/     SettingsModal, Theme, Model
+    sidepanel/    SidePanel, TrajectoryView, BrowserPane, Terminal
+    feedback/     FeedbackOverlay
+    dev/          Gallery — every component in isolation, no backend
+  state/          AppContext, useChat, useSessions, useSideChats
 electron/
-  chat/          # systemPrompt, streamClient (SSE)
-  db/            # sessions, messages, sideChats, settings (sort_order migration)
-  ipc/           # sessions, messages, chat, settings, sideChats
+  agent/          engine.ts (AgentEngine contract), trace.ts
+  chat/           systemPrompt
+  db/             sessions, messages, sideChats, providers, settings
+  ipc/            one module per domain, registered in ipc/index.ts
+  api/            registry.ts + webServer.ts, shared by IPC and the browser bridge
 ```
+
+## Architecture notes
+
+**One handler registry.** `electron/api/registry.ts` backs both Electron IPC and
+the HTTP bridge, so the desktop app and the browser build cannot drift.
+
+**Typed turn model.** Assistant turns persist ordered events in
+`messages.turn_json`; `content` is only the final answer. A compatibility
+parser handles rows written before this model existed.
+
+**Stream fragmentation.** Providers interleave reasoning and text arbitrarily
+within one assistant message. An engine must emit one `assistant_end` per
+completed message carrying canonical blocks; the consumer replaces only the
+segment after the last tool result. Without this, a stream that ends
+`reasoning, "F", reasoning, "ORK-OK"` persists `ORK-OK`.
+
+## Design
+
+`DESIGN.md` is the design system, copied verbatim from
+[zai-org/ZCode](https://github.com/zai-org/ZCode) (Apache-2.0, v3.15.1). It is
+the authority for colour semantics, the typography scale, radius hierarchy,
+spacing, sizing and motion, and a violation of it is a design-system defect
+rather than a style preference.
+
+It is currently unimplemented — Rcode's own theme layer still carries three
+generations of tokens (a dead purple/navy palette in `tailwind.config.ts`,
+shadcn names, and `--color-*` names), and interface font scaling mutates the
+root `html` font size, which the spec forbids. Porting is staged.
+
+Read `DESIGN.md` before writing UI.
+
+## Known issues
+
+**Two shiki versions ship in the bundle.** `package.json` pins `shiki@4.4.3`
+(used by `code-block.tsx`), while `@streamdown/code` declares `shiki@^3.19.0`
+and resolves a nested 3.23.0. Both emit their own grammar and theme chunks,
+producing ~178 byte-identical files and ~4.6 MB of dead weight in
+`dist/renderer/assets`. Fixing it means either dropping the direct `shiki`
+dependency in favour of streamdown's, or forcing a single version with an npm
+`overrides` entry. Not done here because both paths need rendering checks this
+project has no automated coverage for.
 
 ## License
 

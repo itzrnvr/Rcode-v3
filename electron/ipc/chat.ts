@@ -1,13 +1,14 @@
 /*
- * PURPOSE: Chat turns driven by the pi engine (pi-coding-agent worker).
+ * PURPOSE: Chat turns — stream an engine turn into the renderer and persist it.
  *
- * pi is Rcode's only agent core: it owns the tool loop, context, compaction
- * and streaming; this module persists the user message, maps pi chunks onto
- * the renderer's ChatChunk stream, and persists the finished turn in Rcode's
- * SQLite as ordered typed events: reasoning, response, tool_call, and
- * tool_result. The API's dedicated reasoning field is never folded into the
- * final response; `content` remains the final answer. The pi engine keeps its
- * own durable session files so agent context survives restarts.
+ * This module owns everything above the agent: it persists the user message,
+ * maps engine StreamEvents onto the renderer's ChatChunk stream, repairs
+ * fragmented provider streams, and persists the finished turn in Rcode's
+ * SQLite as ordered typed events: reasoning, response, tool_call, tool_result.
+ * `content` remains the final answer.
+ *
+ * The agent itself is Rcode's own loop, behind the AgentEngine contract in
+ * agent/engine.ts. There is no external backend and no fallback.
  */
 
 import type { IpcMainInvokeEvent } from "electron";
@@ -19,13 +20,13 @@ import { getSettings } from "../db/settings";
 import { getProvider } from "../db/providers";
 import { buildSystemPrompt } from "../chat/systemPrompt";
 import { logTrace, readTrace } from "../agent/trace";
-import { runPiTurn, resetPiSessionToUser, runPiCompact, type PiAssistantBlock } from "../agent/pi-bridge";
+import { getEngine, type AssistantBlock } from "../agent/engine";
 import { homedir } from "os";
 
 import type { AgentTurn, AgentTurnEvent, ChatRequest, ChatChunk, Settings, TurnUsage } from "../../src/types";
 
 /**
- * Stream one pi turn into the renderer and collect the persistable turn.
+ * Stream one engine turn into the renderer and collect the persistable turn.
  * persist() runs BEFORE the done chunk so a post-done message refetch sees it.
  */
 async function runTurn(
@@ -46,11 +47,12 @@ async function runTurn(
   const events: AgentTurnEvent[] = [];
   let usageIn = 0;
   let usageOut = 0;
-  // Keep tool results as turn-segment boundaries. At each pi assistant message
-  // end we replace only the latest raw delta segment with pi's canonical blocks.
+  // Keep tool results as turn-segment boundaries. At each completed assistant
+  // message we replace only the latest raw delta segment with its canonical
+  // blocks.
   // This repairs fragmented provider streams without changing earlier traces or
   // assuming that all text/reasoning deltas arrive as one contiguous run.
-  const reconcileAssistantSegment = (blocks: PiAssistantBlock[]) => {
+  const reconcileAssistantSegment = (blocks: AssistantBlock[]) => {
     const boundary = events.findLastIndex(item => item.kind === "tool_result");
     const segmentStart = boundary + 1;
     const canonical = blocks.flatMap(block => {
@@ -69,19 +71,22 @@ async function runTurn(
   const turn = readTrace(sid).filter(e => e.kind === "turn_start").length + 1;
   logTrace(sid, {
     kind: "turn_start", turn, model: request.model ?? settings.model,
-    baseUrl: providerRow?.baseUrl ?? settings.apiBase, engine: "pi", userMessage: opts.promptText,
+    baseUrl: providerRow?.baseUrl ?? settings.apiBase, userMessage: opts.promptText,
   });
   try {
-    await runPiTurn(sid, opts.promptText, {
+    await getEngine().runTurn({
+      sessionId: sid,
+      promptText: opts.promptText,
       providerId: settings.providerName,
       baseUrl: providerRow?.baseUrl || settings.apiBase,
       apiKey: providerRow?.apiKey || "",
       modelId: request.model ?? settings.model,
-      modelList: providerRow?.modelList.map(m => m.id),
+      modelList: providerRow?.modelList.map(m => m.id) ?? [],
       cwd: homedir(),
       systemPrompt: buildSystemPrompt(settings.globalInstructions, session?.customInstructions ?? null),
       mode: (request.mode as string) || "full-access",
       effort: request.reasoningEffort || (settings as Settings & { reasoningEffort?: string }).reasoningEffort,
+      tools: [],
       onChunk: c => {
         if (c.kind === "text" && c.delta) {
           // OpenAI-compatible providers may emit a whitespace-only text delta
@@ -168,19 +173,19 @@ export function registerChatHandler(): void {
     const anchor = history.find(m => m.id === request.anchorUserMessageId && m.role === "user");
     if (!anchor) throw new Error("Anchor user message not found");
 
-    // Retry must move pi's durable conversation tree back to the anchor user
-    // message. Dropping only the in-memory session is not enough: rebuilding it
-    // would otherwise resume the old branch, including the abandoned answer.
+    // Retry must rewind engine context to the anchor user message, so the
+    // regenerated turn sees only history that legitimately precedes it. The
+    // abandoned answer and any later tail must stay out of the request.
     const anchorIdx = history.indexOf(anchor);
     const anchorOccurrence = history
       .slice(0, anchorIdx + 1)
       .filter(m => m.role === "user" && m.content === anchor.content).length;
-    await resetPiSessionToUser(
-      request.sessionId,
-      anchor.content,
-      anchorOccurrence,
-      homedir(),
-    );
+    await getEngine().resetToAnchor({
+      sessionId: request.sessionId,
+      promptText: anchor.content,
+      occurrence: anchorOccurrence,
+      cwd: homedir(),
+    });
     const target = history.slice(anchorIdx + 1).find(m => m.role === "assistant");
     // Retry = new branch: archive everything after the target under its current
     // version so the tail disappears; version arrows restore it later.
@@ -200,14 +205,14 @@ export function registerChatHandler(): void {
     });
   });
 
-  // Compact the pi session's context (pi does the summarization in-engine).
+  // Compact the session context; the engine performs the summarization.
   registerApiHandler("chat:compact", async (_e, sessionId: string) => {
-    const summary = await runPiCompact(sessionId);
+    const summary = await getEngine().compact(sessionId);
     return { summary };
   });
 
-  // Context usage estimate for the composer pill. Tool schemas live in pi;
-  // a fixed estimate keeps the pill meaningful without reaching into the worker.
+  // Context usage estimate for the composer pill. Tool schema weight is fixed
+  // until the engine reports a real token count.
   registerApiHandler("chat:contextInfo", (_e, sessionId: string) => {
     const settings = getSettings();
     const session = getSession(sessionId);

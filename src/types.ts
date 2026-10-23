@@ -91,7 +91,12 @@ export interface Theme {
   darkMode: boolean;
 }
 
-export type ThemePreset = "unsloth-mint" | "rcode-blue" | "classic-dark" | "light-classic";
+// "one-ui" is the Samsung One UI prototype preset (oneui.html). Its palette,
+// radius ladder, type scale and motion live in the [data-theme="one-ui"] block
+// at the end of index.css; the THEME_PRESETS entry below only feeds the
+// settings preview card and applyTheme's inline writes, which the class block
+// overrides.
+export type ThemePreset = "unsloth-mint" | "rcode-blue" | "classic-dark" | "light-classic" | "one-ui";
 
 export interface Settings {
   reasoningEffort?: string;
@@ -141,20 +146,26 @@ export interface ChatRequest {
 
 export const DEFAULT_THEME: Theme = {
   preset: "rcode-blue",
-  accent: "#5DD1FF",
+  // ZCode's brand is monochrome. --color-brand is #ffffff and --color-accent
+  // is #001d3d, a near-black blue tint that only ever sits behind white text.
+  // The cyan this used (#5DD1FF) was applied to buttons, badges, focus rings
+  // and borders simultaneously, so nothing on screen had a clear priority.
+  accent: "#ffffff",
   background: "#161616",
-  foreground: "#e5e5e5",
+  foreground: "#d4d4d4",
   surface: "#202020",
   sidebar: "#161616",
-  border: "#ffffff1a",
-  muted: "#a3a3a3",
-  success: "#17B88B",
-  warning: "#FACC15",
-  danger: "#dc2626",
-  uiFont: "Inter, system-ui, -apple-system, 'Segoe UI', sans-serif",
-  codeFont: "'JetBrains Mono', 'Cascadia Code', Menlo, Consolas, monospace",
-  fontSizeScale: 1.08,
-  radius: 10,
+  border: "rgba(255, 255, 255, 0.1)",
+  muted: "#919191",
+  success: "#46bf72",
+  warning: "#ff8a30",
+  danger: "#ff5c5c",
+  uiFont: "Geist Variable, system-ui, -apple-system, 'Segoe UI', sans-serif",
+  codeFont: "'Geist Mono Variable', 'JetBrains Mono', 'Cascadia Code', Menlo, Consolas, monospace",
+  // ZCode's base is 14px at scale 1.0.
+  fontSizeScale: 1,
+  // Tailwind's lg, which is where ZCode puts its controls.
+  radius: 8,
   translucentSidebar: false,
   contrast: "medium",
   darkMode: true,
@@ -250,6 +261,32 @@ export const THEME_PRESETS: Record<ThemePreset, Theme> = {
     translucentSidebar: false,
     contrast: "medium",
     darkMode: false,
+  },
+  "one-ui": {
+    preset: "one-ui",
+    // One UI dark. The light variant is the same preset with darkMode: false —
+    // applyTheme writes data-mode="light" and the class block in index.css
+    // swaps the palette off that attribute.
+    accent: "#4d8dff",
+    background: "#111318",
+    foreground: "#e8eaf0",
+    surface: "#1a1d23",
+    sidebar: "#15181e",
+    border: "rgba(232, 234, 240, 0.12)",
+    muted: "#9aa1ae",
+    success: "#3ddc84",
+    warning: "#ffb300",
+    danger: "#ff6b6b",
+    uiFont: "Geist Variable, system-ui, -apple-system, 'Segoe UI', sans-serif",
+    codeFont: "'Geist Mono Variable', 'JetBrains Mono', 'Cascadia Code', Menlo, Consolas, monospace",
+    fontSizeScale: 1,
+    // One UI's radius ladder is 8/12/16/24 — much rounder than Tailwind's
+    // 4/6/8/12 baseline. The class block pins the exact ladder; this radius
+    // only drives applyTheme's derived steps, which the block also overrides.
+    radius: 16,
+    translucentSidebar: false,
+    contrast: "medium",
+    darkMode: true,
   },
 };
 
