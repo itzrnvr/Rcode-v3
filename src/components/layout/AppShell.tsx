@@ -1,16 +1,22 @@
 /*
- * PURPOSE: Layout shell — 2-panel or 3-panel depending on side panel
+ * PURPOSE: Layout shell — titlebar over a three-panel body (session drawer,
+ * chat, side panel)
+ *
+ * The session drawer is the One UI prototype's .oui-sidebar ported onto
+ * .panel-sessions: it collapses to width 0 on --duration-panel while its
+ * fixed-width inner holds the layout (see index.css). The width itself is
+ * the --panel-sessions-w custom property, so the drag resizer and the
+ * collapsed state drive the same number and the inner never reflows
+ * mid-transition. The side panel keeps its own width handling.
  *
  * Panel widths (configurable via CSS):
  *   - titlebar: 44px tall
- *   - sessions: 280px expanded, 0px collapsed
+ *   - sessions: --panel-sessions-w (200-480px via drag), 0 collapsed
  *   - chat: flex 1
- *   - sidePanel: 300px when present, 0 when null
+ *   - sidePanel: 300px when present, 0 when collapsed
  */
 
 import { type ReactNode } from "react";
-
-import { ChevronLeftIcon, ChevronRightIcon } from "../common/Icons";
 
 interface AppShellProps {
   titleBar: ReactNode;
@@ -43,11 +49,10 @@ export function AppShell({ titleBar, sessions, chat, sidePanel, sidebarCollapsed
       if (Math.abs(ev.clientX - startX) > 3) moved = true;
       const delta = ev.clientX - startX;
       const next = Math.min(480, Math.max(200, startW + delta));
-      // Direct DOM update for smooth 60fps without React re-render per pixel
-      if (el) {
-        el.style.width = `${next}px`;
-        el.style.minWidth = `${next}px`;
-      }
+      // Direct DOM update for smooth 60fps without React re-render per pixel.
+      // The panel width reads --panel-sessions-w, and the fixed-width inner
+      // reads the same property, so panel and content track together.
+      if (el) el.style.setProperty("--panel-sessions-w", `${next}px`);
       document.body.style.cursor = "col-resize";
       document.body.style.userSelect = "none";
     };
@@ -140,7 +145,13 @@ export function AppShell({ titleBar, sessions, chat, sidePanel, sidebarCollapsed
           />
         )}
         {!sidePanelCollapsed && sidePanel}
-        {/*,         * The panel-edge-expand strips are gone. They rendered as a 16px,         * full-height button pinned to the opposite edge of the window - the,         * control for the LEFT sidebar sat on the far RIGHT - while the,         * titlebar already has a Toggle sidebar and a Toggle side panel.,         * Two ways to do one thing, one of them in the wrong place.,         */}
+        {/*
+         * The panel-edge-expand strips are gone. They rendered as a 16px,
+         * full-height button pinned to the opposite edge of the window - the
+         * control for the LEFT sidebar sat on the far RIGHT - while the
+         * titlebar already has a Toggle sidebar and a Toggle side panel.
+         * Two ways to do one thing, one of them in the wrong place.
+         */}
       </div>
     </div>
   );

@@ -144,43 +144,6 @@ export interface ChatRequest {
   reasoningEffort?: string;
 }
 
-export const DEFAULT_THEME: Theme = {
-  preset: "rcode-blue",
-  // ZCode's brand is monochrome. --color-brand is #ffffff and --color-accent
-  // is #001d3d, a near-black blue tint that only ever sits behind white text.
-  // The cyan this used (#5DD1FF) was applied to buttons, badges, focus rings
-  // and borders simultaneously, so nothing on screen had a clear priority.
-  accent: "#ffffff",
-  background: "#161616",
-  foreground: "#d4d4d4",
-  surface: "#202020",
-  sidebar: "#161616",
-  border: "rgba(255, 255, 255, 0.1)",
-  muted: "#919191",
-  success: "#46bf72",
-  warning: "#ff8a30",
-  danger: "#ff5c5c",
-  uiFont: "Geist Variable, system-ui, -apple-system, 'Segoe UI', sans-serif",
-  codeFont: "'Geist Mono Variable', 'JetBrains Mono', 'Cascadia Code', Menlo, Consolas, monospace",
-  // ZCode's base is 14px at scale 1.0.
-  fontSizeScale: 1,
-  // Tailwind's lg, which is where ZCode puts its controls.
-  radius: 8,
-  translucentSidebar: false,
-  contrast: "medium",
-  darkMode: true,
-};
-
-export const DEFAULT_SETTINGS: Settings = {
-  apiBase: "http://127.0.0.1:3459/v1",
-  apiKey: "",
-  model: "glm-5.2",
-  providerName: "local-proxy",
-  globalInstructions: "",
-  theme: DEFAULT_THEME,
-  enableFeedback: false,
-};
-
 export const THEME_PRESETS: Record<ThemePreset, Theme> = {
   "unsloth-mint": {
     preset: "unsloth-mint",
@@ -288,6 +251,30 @@ export const THEME_PRESETS: Record<ThemePreset, Theme> = {
     contrast: "medium",
     darkMode: true,
   },
+};
+
+/**
+ * The app's default theme.
+ *
+ * One UI is the product's design language, not a gallery experiment: the app,
+ * the gallery and the prototype all render it, so the default has to be it.
+ * Every other preset stays selectable in Settings -> Theme, so the earlier
+ * looks remain one click away.
+ *
+ * It is a copy, not a reference to the preset entry. applyTheme writes the
+ * theme onto documentElement and the settings editor mutates it in place, so
+ * a shared object would leak those edits back into the preset table.
+ */
+export const DEFAULT_THEME: Theme = { ...THEME_PRESETS["one-ui"] };
+
+export const DEFAULT_SETTINGS: Settings = {
+  apiBase: "http://127.0.0.1:3459/v1",
+  apiKey: "",
+  model: "glm-5.2",
+  providerName: "local-proxy",
+  globalInstructions: "",
+  theme: DEFAULT_THEME,
+  enableFeedback: false,
 };
 
 export function applyPreset(preset: ThemePreset, overrides: Partial<Theme> = {}): Theme {

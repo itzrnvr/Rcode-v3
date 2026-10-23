@@ -219,7 +219,7 @@ function AppInner() {
         <SessionList
           collapsed={sidebarCollapsed}
           onToggleCollapse={toggleSidebar}
-          width={sidebarCollapsed ? 52 : sidebarWidth}
+          width={sidebarWidth}
         />
       }
       sidebarCollapsed={sidebarCollapsed}

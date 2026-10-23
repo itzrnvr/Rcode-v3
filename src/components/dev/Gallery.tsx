@@ -49,6 +49,14 @@ import {
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
+import {
+  Trace,
+  TraceDescription,
+  TraceLine,
+  TraceTitle,
+} from "@/components/ui/trace";
+import { AgentTrace } from "@/components/chat/AgentTrace";
+import type { AgentTurn, LiveStep } from "@/types";
 import { ButtonGroup, ButtonGroupSeparator, ButtonGroupText } from "@/components/ui/button-group";
 import {
   DropdownMenu,
@@ -575,6 +583,87 @@ function Foundations({ copied, onCopy }: { copied: string | null; onCopy: (token
 
 /* --- components ----------------------------------------------------------- */
 
+/*
+ * Trace mocks. The streaming one uses LiveStep events — the status/bornAt
+ * markers useChat stamps onto a live turn — because those markers are what
+ * make AgentTrace open the working row and shimmer instead of treating the
+ * turn as finished history.
+ */
+const TRACE_TURN: AgentTurn = {
+  secs: 38,
+  events: [
+    {
+      kind: "reasoning",
+      text: "Signups dropped on one day, so something time-bound broke. The delivery pipeline is the first suspect; check the verification email path around that date.",
+    },
+    {
+      kind: "tool_call",
+      name: "grep",
+      args: JSON.stringify({ pattern: "verification_attempts", path: "db" }),
+    },
+    {
+      kind: "tool_result",
+      name: "grep",
+      result:
+        "[12 matches in 3 files; 41 files scanned]\ndb/verification.ts:88:  where status = 'bounced' and created_at::date = sent_at::date\ndb/verification.ts:102:  update verification_attempts\nmodels/verification.py:14: class VerificationAttempt(Base):",
+    },
+    {
+      kind: "tool_call",
+      name: "read_file",
+      args: JSON.stringify({ path: "config/dkim.json" }),
+    },
+    {
+      kind: "tool_result",
+      name: "read_file",
+      isError: true,
+      result: "config/dkim.json: no such file or directory",
+    },
+    {
+      kind: "tool_call",
+      name: "shell",
+      args: JSON.stringify({ command: "pnpm test" }),
+    },
+    {
+      kind: "tool_result",
+      name: "shell",
+      result:
+        "exit code 0 (3.2s)\n--- stdout ---\nPASS  db/verification.test.ts (24 tests)\nTests  24 passed\n--- stderr ---\n(empty)",
+    },
+  ],
+  finalContent:
+    "Signups fell 41% because verification emails to Gmail bounced for four hours after the DKIM record broke.",
+};
+
+const LIVE_STEPS: LiveStep[] = [
+  {
+    kind: "reasoning",
+    text: "The 502 started with the deploy, so a timeout is more likely than a crash.",
+    bornAt: 0,
+  },
+  {
+    kind: "tool_call",
+    name: "shell",
+    args: JSON.stringify({ command: "tail -n 40 /var/log/app.log" }),
+  },
+  {
+    kind: "tool_result",
+    name: "shell",
+    result:
+      "exit code 0 (0.4s)\n--- stdout ---\n14:02:19 POST /api/checkout 502 10.0s\n14:02:19 Task timed out after 10s",
+  },
+  {
+    kind: "reasoning",
+    text: "The log says the task timed out after 10s, so the function hung rather than crashed. The route awaits shipping.quote with no deadline — that is the fix.",
+    bornAt: 1,
+  },
+];
+
+const LIVE_TURN: AgentTurn = {
+  secs: 0,
+  events: LIVE_STEPS,
+  finalContent: "",
+};
+
 function Components() {
   const [checked, setChecked] = useState(true);
   const [model, setModel] = useState("sonnet");
@@ -785,6 +874,41 @@ function Components() {
               A single independent region, as opposed to the accordion&apos;s exclusive set.
             </CollapsibleContent>
           </Collapsible>
+        </Row>
+      </Spec>
+
+      <Spec
+        id="trace"
+        title="Trace"
+        note="What the agent did before it answered, folded into one summary row above the answer. A row that is still working opens itself and folds when it finishes; a click wins over the automatic open in either direction. Status is colour and motion only, so every title says the state in words."
+      >
+        <Row label="Statuses">
+          <Trace className="w-full max-w-md">
+            <TraceLine>
+              <TraceTitle>Read 12 files</TraceTitle>
+              <TraceDescription>48 lines</TraceDescription>
+            </TraceLine>
+            <TraceLine status="running">
+              <TraceTitle>Reading src/index.css</TraceTitle>
+            </TraceLine>
+            <TraceLine status="error">
+              <TraceTitle>Failed to read config.json</TraceTitle>
+              <TraceDescription>no such file</TraceDescription>
+            </TraceLine>
+            <TraceLine status="pending">
+              <TraceTitle>Waiting to run the migration</TraceTitle>
+            </TraceLine>
+          </Trace>
+        </Row>
+        <Row label="Finished turn">
+          <div className="w-full max-w-2xl">
+            <AgentTrace turn={TRACE_TURN} />
+          </div>
+        </Row>
+        <Row label="Streaming turn">
+          <div className="w-full max-w-2xl">
+            <AgentTrace streaming turn={LIVE_TURN} />
+          </div>
         </Row>
       </Spec>
 
@@ -1006,6 +1130,7 @@ const NAV = [
   ["tabs", "Tabs"],
   ["card", "Card"],
   ["disclosure", "Disclosure"],
+  ["trace", "Trace"],
   ["overlays", "Overlays"],
   ["select", "Select"],
   ["command", "Command"],

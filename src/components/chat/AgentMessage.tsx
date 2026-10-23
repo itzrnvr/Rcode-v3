@@ -2,7 +2,7 @@ import { Message, MessageAction, MessageActions, MessageBranch, MessageBranchCon
 
 import { parseLegacyTurn } from "@/lib/agentTurn";
 import type { AgentTurn, LiveStep, Message as RcodeMessage, TurnUsage } from "../../types";
-import { AgentTurnView } from "./AgentTurnView";
+import { AgentTrace } from "./AgentTrace";
 import {
   CheckIcon,
   CopyIcon,
@@ -116,7 +116,7 @@ export function AgentMessage({
           </div>
         </MessageContent>
       ) : (
-        <MessageContent>
+        <MessageContent className="rcode-bubble-user">
           <MessageResponse>{message.content}</MessageResponse>
         </MessageContent>
       )
@@ -129,7 +129,7 @@ export function AgentMessage({
         <MessageBranchContent>
           {versions.map((version, index) => (
             <MessageContent key={`version-${index}`}>
-              <AgentTurnView streaming={streaming && index === activeVersion} turn={version} />
+              <AgentTrace streaming={streaming && index === activeVersion} turn={version} />
             </MessageContent>
           ))}
         </MessageBranchContent>
@@ -163,7 +163,7 @@ export function AgentMessage({
             </div>
           </>
         ) : (
-          <AgentTurnView streaming={streaming} turn={turn} />
+          <AgentTrace streaming={streaming} turn={turn} />
         )}
       </MessageContent>
     );

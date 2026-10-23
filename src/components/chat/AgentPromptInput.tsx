@@ -30,6 +30,7 @@ import { api } from "../../api/client";
 import { useApp } from "../../state/AppContext";
 import { useProviders } from "../../state/useProviders";
 import {
+  ArrowUpIcon,
   CheckIcon,
   ChevronDownIcon,
   ChevronRightIcon,
@@ -556,7 +557,15 @@ export function AgentPromptInput({
               disabled={disabled && !streaming}
               onStop={onStop}
               status={streaming ? "streaming" : undefined}
-            />
+            >
+              {/* The prototype's send is a round accent button with an up
+                  arrow. The arrow is passed as children only while idle: while
+                  a turn runs, children become undefined and the submit's own
+                  status icons return (square while streaming), so the stop
+                  affordance stays honest. undefined, not false — `??` only
+                  falls through on null/undefined. */}
+              {streaming ? undefined : <ArrowUpIcon size={20} className="size-5" />}
+            </PromptInputSubmit>
           </PromptInputTools>
         </PromptInputFooter>
       </PromptInput>

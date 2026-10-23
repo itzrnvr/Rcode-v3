@@ -2,6 +2,7 @@ import { ConversationEmptyState } from "@/components/ai-elements/conversation";
 import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 
+import { MessageCircleIcon } from "../common/Icons";
 import { useChat } from "../../state/useChat";
 import { AgentConversation } from "../chat/AgentConversation";
 import { AgentMessage } from "../chat/AgentMessage";
@@ -44,6 +45,7 @@ export function SideChatThread({ sessionId, title }: SideChatThreadProps) {
   return (
     <div className="side-chat-thread">
       <div className="side-chat-header">
+        <MessageCircleIcon size={14} className="shrink-0 text-[var(--color-foreground-subtlest)]" />
         <span className="side-chat-title">{title}</span>
         <span className="side-chat-label">side chat</span>
       </div>

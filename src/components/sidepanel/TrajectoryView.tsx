@@ -1,27 +1,38 @@
 /*
  * PURPOSE: Trajectory viewer — dsh-web parity + Chrome-DevTools-Network-style
- * horizontal timeline.
+ * horizontal timeline, in the One UI language.
  *
- * Timeline interactions:
+ * Timeline interactions (unchanged):
  *  - full-width time axis with a ruler (adaptive tick labels).
  *  - wheel = anchored zoom (like Chrome network waterfall); shift+wheel or
  *    horizontal wheel = pan; shift+drag = pan; plain drag = brush region
- *    select (blue band) that filters the event list + shows a range chip.
+ *    select that filters the event list + shows a range chip.
  *  - Escape resets zoom + selection. Tiny drags clear the brush.
- *  - click a bar/row = focus select: dashed blue line across lanes, filled
+ *  - click a bar/row = focus select: dashed accent line across lanes, filled
  *    bullet, row scroll-into-view, inspector (Summary/Preview/Raw).
  *
- * Lanes: Input (green ticks) / Model (dense purple bars) / Tools (orange
- * bars, gray = no outcome). Event list: lane-colored bullets, role pills,
- * mono tool rows `name {args} → result` with pink TOOL_OUTCOME_UNKNOWN,
- * red-dot Turn N dividers. Footer: dsh-format pipe-separated stats.
+ * Presentation: the prototype's trajectory pane is a quiet mono list — badges
+ * as plain mono text steps, turn dividers as a neutral dot, no coloured role
+ * pills. The lanes stay monochrome and differentiate by shape (ticks, thin
+ * bars, wide bars); colour is reserved for real state (warning = tool call
+ * with no result yet) and for selection (accent on the selected marks and the
+ * focus line).
  *
  * Data: JSONL trace via trace:list IPC, auto-refresh 3s.
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../../api/client";
-import { RefreshIcon, SearchIcon, ClockIcon, ListIcon, LayoutGridIcon, DownloadIcon, XIcon } from "../common/Icons";
+import {
+  RefreshIcon,
+  ClockIcon,
+  ListIcon,
+  LayoutGridIcon,
+  DownloadIcon,
+  XIcon,
+  ChevronDownIcon,
+} from "../common/Icons";
+import { cn } from "../../lib/utils";
 
 interface TraceEntry {
   ts: string;
@@ -42,16 +53,6 @@ const BADGE: Record<string, string> = {
   content: "ASSISTANT",
   response: "MODEL",
   turn_end: "SYSTEM",
-};
-
-const BADGE_COLOR: Record<string, string> = {
-  SYSTEM: "#a3a3a3",
-  USER: "#3b82f6",
-  CONTEXT: "#3fa14b",
-  THINK: "#b07fd8",
-  TOOL: "#d89a3f",
-  ASSISTANT: "#9a7fd8",
-  MODEL: "#5a8ad8",
 };
 
 function fmtMs(ms: number): string {
@@ -99,6 +100,10 @@ interface Row {
 }
 
 const LABEL_GUTTER = 46; // px reserved for lane labels
+
+const chip =
+  "flex shrink-0 items-center gap-1.5 rounded-full px-2.5 text-ui-xs font-semibold text-[var(--color-foreground-subtle)] transition-colors duration-200 hover:bg-[var(--color-hover)] hover:text-[var(--color-fg)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--color-accent)]";
+const chipActive = "bg-[var(--color-selected)] text-[var(--color-fg)] hover:bg-[var(--color-selected)] hover:text-[var(--color-fg)]";
 
 export function TrajectoryView({ sessionId }: { sessionId: string | null }) {
   const [entries, setEntries] = useState<TraceEntry[]>([]);
@@ -318,26 +323,20 @@ export function TrajectoryView({ sessionId }: { sessionId: string | null }) {
     URL.revokeObjectURL(a.href);
   };
 
-  if (!sessionId) return <div style={{ color: "var(--color-foreground-subtle)", padding: 20, fontSize: 12 }}>Open a session to see its trajectory.</div>;
+  if (!sessionId) return <div className="p-5 text-ui-xs text-[var(--color-foreground-subtlest)]">Open a session to see its trajectory.</div>;
 
-  const mono = "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
   const activeRange = draft ? { a: Math.min(draft.a, draft.b), b: Math.max(draft.a, draft.b) } : range;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0, position: "relative" }}>
+    <div className="relative flex min-h-0 flex-1 flex-col">
       {/* Toolbar */}
-      <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 8px", borderBottom: "1px solid var(--color-border)" }}>
+      <div className="flex flex-wrap items-center gap-1.5 border-b border-[var(--color-border)] px-2 py-1.5">
         {(["duration", "turns", "calls"] as const).map(v => (
           <button
             key={v}
+            type="button"
             onClick={() => setView(v)}
-            style={{
-              display: "flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 999, fontSize: 11, fontWeight: 600, cursor: "pointer",
-              background: view === v ? "#2a2a2a" : "#1e1e1e",
-              color: view === v ? "#ececec" : "#a3a3a3",
-              border: "1px solid #ffffff30",
-              textTransform: "capitalize",
-            }}
+            className={cn(chip, "h-7", view === v && chipActive)}
           >
             {v === "duration" ? <ClockIcon size={12} /> : v === "turns" ? <ListIcon size={12} /> : <LayoutGridIcon size={12} />}
             {v}
@@ -345,9 +344,10 @@ export function TrajectoryView({ sessionId }: { sessionId: string | null }) {
         ))}
         {range && (
           <button
+            type="button"
             onClick={() => setRange(null)}
             title="Clear range selection (Esc)"
-            style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 9px", borderRadius: 999, fontSize: 10.5, fontWeight: 600, cursor: "pointer", background: "#16233a", color: "#7ab0ff", border: "1px solid #2a4a7a" }}
+            className={cn(chip, "h-7", chipActive)}
           >
             <ClockIcon size={11} />
             {fmtMs(range.b - range.a)} · {visibleRows.length} events
@@ -355,18 +355,22 @@ export function TrajectoryView({ sessionId }: { sessionId: string | null }) {
           </button>
         )}
         {viewport && (
-          <button onClick={() => setViewport(null)} title="Reset zoom (Esc)" style={{ padding: "4px 8px", borderRadius: 999, fontSize: 10.5, background: "#1e1e1e", color: "#a3a3a3", border: "1px solid #ffffff30", cursor: "pointer" }}>
+          <button type="button" onClick={() => setViewport(null)} title="Reset zoom (Esc)" className={cn(chip, "h-7", chipActive)}>
             {Math.round((domainDur / fullSpan) * 100)}%
           </button>
         )}
-        <span style={{ flex: 1 }} />
-        <span style={{ fontSize: 9, color: "#6f6f6f" }}>drag select · wheel zoom · shift+drag pan · esc reset</span>
-        <div style={{ display: "flex", alignItems: "center", gap: 5, background: "#1e1e1e", border: "1px solid #ffffff1f", borderRadius: 8, padding: "4px 8px" }}>
-          <SearchIcon size={11} />
-          <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search" style={{ background: "transparent", border: "none", outline: "none", color: "#ececec", fontSize: 11, width: 80 }} />
+        <span className="flex-1" />
+        <div className="flex min-w-0 items-center gap-1.5 rounded-full border border-[var(--color-input-border)] bg-[var(--color-surface)] py-1 pl-3 pr-1 transition-colors duration-200 focus-within:border-[var(--color-input-border-hover)]">
+          <input
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Search"
+            aria-label="Search trajectory"
+            className="h-6 w-20 min-w-0 bg-transparent text-ui-xs text-[var(--color-fg)] outline-none placeholder:text-[var(--color-foreground-subtlest)]"
+          />
         </div>
-        <button className="ms-iconbtn" title="Session log" onClick={downloadLog}><DownloadIcon size={13} /></button>
-        <button className="ms-iconbtn" title="Refresh" onClick={() => setReload(r => r + 1)}><RefreshIcon size={13} /></button>
+        <button className="sp-iconbtn" title="Session log" onClick={downloadLog} aria-label="Download session log"><DownloadIcon size={14} /></button>
+        <button className="sp-iconbtn" title="Refresh" onClick={() => setReload(r => r + 1)} aria-label="Refresh trajectory"><RefreshIcon size={14} /></button>
       </div>
 
       {/* Timeline: ruler + lanes, brush + zoom + pan */}
@@ -376,91 +380,125 @@ export function TrajectoryView({ sessionId }: { sessionId: string | null }) {
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
-          style={{ padding: "6px 8px 6px", borderBottom: "1px solid var(--color-border)", position: "relative", cursor: "crosshair", touchAction: "none", userSelect: "none" }}
+          className="relative cursor-crosshair border-b border-[var(--color-border)] px-2 py-1.5 select-none"
+          style={{ touchAction: "none" }}
         >
           {/* ruler */}
-          <div style={{ display: "flex", gap: 8, marginBottom: 3 }}>
-            <span style={{ width: 38 }} />
-            <div style={{ flex: 1, position: "relative", height: 12, borderBottom: "1px solid #232323" }}>
+          <div className="mb-0.5 flex gap-2">
+            <span className="w-[38px] shrink-0" />
+            <div className="relative h-3 flex-1 border-b border-[color-mix(in_srgb,var(--color-border)_80%,transparent)]">
               {timeline.ticks.map(t => (
-                <span key={t} style={{ position: "absolute", left: `${at(t)}%`, top: 0, height: 12, borderLeft: "1px solid #ffffff1f" }}>
-                  <span style={{ position: "absolute", left: 3, top: 0, fontSize: 8, color: "#6f6f6f", fontFamily: mono, whiteSpace: "nowrap" }}>{fmtMs(t)}</span>
+                <span key={t} className="absolute top-0 h-3 border-l border-[color-mix(in_srgb,var(--color-fg)_12%,transparent)]" style={{ left: `${at(t)}%` }}>
+                  <span className="absolute left-1 top-0 whitespace-nowrap font-mono text-ui-2xs text-[var(--color-foreground-subtlest)]">{fmtMs(t)}</span>
                 </span>
               ))}
             </div>
           </div>
           {(["Input", "Model", "Tools"] as const).map((lane, li) => (
-            <div key={lane} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-              <span style={{ width: 38, fontSize: 9, color: "#7d7d7d", fontFamily: mono }}>{lane}</span>
-              <div ref={li === 0 ? trackRef : undefined} style={{ flex: 1, position: "relative", height: 10, borderBottom: "1px solid #232323", overflow: "hidden" }}>
+            <div key={lane} className="mb-1 flex items-center gap-2">
+              <span className="w-[38px] shrink-0 font-mono text-ui-2xs text-[var(--color-foreground-subtlest)]">{lane}</span>
+              <div ref={li === 0 ? trackRef : undefined} className="relative h-2.5 flex-1 overflow-hidden border-b border-[color-mix(in_srgb,var(--color-border)_80%,transparent)]">
                 {lane === "Input" && timeline.inputTicks.map(b => (
-                  <span key={b.key} onClick={() => select(b.key, true)} style={{ position: "absolute", left: `${b.left}%`, top: 2, width: 3, height: 6, background: "#3fa14b", borderRadius: 1, cursor: "pointer" }} />
+                  <span
+                    key={b.key}
+                    onClick={() => select(b.key, true)}
+                    title="Jump to event"
+                    className={cn("absolute top-0.5 h-1.5 w-[3px] cursor-pointer rounded-[1px] bg-[var(--color-foreground-subtle)]", selKey === b.key && "bg-[var(--color-accent)]")}
+                    style={{ left: `${b.left}%` }}
+                  />
                 ))}
                 {lane === "Model" && timeline.modelBars.map(b => (
-                  <span key={b.key} onClick={() => select(b.key, true)} style={{ position: "absolute", left: `${b.left}%`, top: b.wide ? 1 : 3, width: b.wide ? 3 : 2, height: b.wide ? 8 : 5, background: selKey === b.key ? "#5a8ad8" : "#b07fd8", borderRadius: 1, cursor: "pointer" }} />
+                  <span
+                    key={b.key}
+                    onClick={() => select(b.key, true)}
+                    title="Jump to event"
+                    className={cn(
+                      "absolute cursor-pointer rounded-[1px] bg-[var(--color-foreground-subtle)]",
+                      b.wide ? "top-px h-2 w-[3px]" : "top-[3px] h-1 w-[2px]",
+                      selKey === b.key && "bg-[var(--color-accent)]",
+                    )}
+                    style={{ left: `${b.left}%` }}
+                  />
                 ))}
                 {lane === "Tools" && timeline.toolBars.map(b => (
-                  <span key={b.key} onClick={() => select(b.key, true)} style={{ position: "absolute", left: `${b.left}%`, width: `${b.width}%`, top: 2, height: 6, background: selKey === b.key ? "#5a8ad8" : b.unknown ? "#a3a3a3" : "#d89a3f", borderRadius: 2, cursor: "pointer" }} />
+                  <span
+                    key={b.key}
+                    onClick={() => select(b.key, true)}
+                    title="Jump to event"
+                    className={cn(
+                      "absolute top-0.5 h-1.5 cursor-pointer rounded-[2px]",
+                      b.unknown ? "bg-[var(--color-warning)]" : "bg-[var(--color-foreground-subtle)]",
+                      selKey === b.key && "bg-[var(--color-accent)]",
+                    )}
+                    style={{ left: `${b.left}%`, width: `${b.width}%` }}
+                  />
                 ))}
               </div>
             </div>
           ))}
           {/* brush band */}
           {activeRange && (
-            <span style={{
-              position: "absolute", top: 20, bottom: 6,
-              left: `calc(${LABEL_GUTTER}px + (100% - ${LABEL_GUTTER + 8}px) * ${Math.max(0, Math.min(100, at(activeRange.a))) / 100})`,
-              width: `calc((100% - ${LABEL_GUTTER + 8}px) * ${Math.max(0, at(activeRange.b) - at(activeRange.a)) / 100})`,
-              background: "rgba(90,138,216,.14)",
-              borderLeft: "1px solid #5a8ad8", borderRight: "1px solid #5a8ad8",
-              pointerEvents: "none",
-            }} />
+            <span
+              className="pointer-events-none absolute bottom-1.5 top-5 border-l border-r border-[var(--color-accent)] bg-[color-mix(in_srgb,var(--color-accent)_14%,transparent)]"
+              style={{
+                left: `calc(${LABEL_GUTTER}px + (100% - ${LABEL_GUTTER + 8}px) * ${Math.max(0, Math.min(100, at(activeRange.a))) / 100})`,
+                width: `calc((100% - ${LABEL_GUTTER + 8}px) * ${Math.max(0, at(activeRange.b) - at(activeRange.a)) / 100})`,
+              }}
+            />
           )}
           {/* dashed focus line */}
           {timeline.selLeft != null && (
-            <span style={{ position: "absolute", top: 20, bottom: 6, left: `calc(${LABEL_GUTTER}px + (100% - ${LABEL_GUTTER + 8}px) * ${timeline.selLeft / 100})`, borderLeft: "1px dashed #5a8ad8", pointerEvents: "none" }} />
+            <span
+              className="pointer-events-none absolute bottom-1.5 top-5 border-l border-dashed border-[var(--color-accent)]"
+              style={{ left: `calc(${LABEL_GUTTER}px + (100% - ${LABEL_GUTTER + 8}px) * ${timeline.selLeft / 100})` }}
+            />
           )}
         </div>
       )}
 
       {/* Event list */}
-      <div ref={listRef} style={{ flex: 1, overflowY: "auto", padding: "6px 6px" }}>
-        {rows.length === 0 && <div style={{ color: "var(--color-foreground-subtle)", fontSize: 12, padding: 12 }}>No trace yet — send a message to start recording.</div>}
-        {rows.length > 0 && filtered.length === 0 && <div style={{ color: "var(--color-foreground-subtle)", fontSize: 12, padding: 12 }}>No events in the selected range.</div>}
+      <div ref={listRef} className="min-h-0 flex-1 overflow-y-auto px-1.5 py-1.5">
+        {rows.length === 0 && <div className="p-3 text-ui-xs text-[var(--color-foreground-subtlest)]">No trace yet — send a message to start recording.</div>}
+        {rows.length > 0 && filtered.length === 0 && <div className="p-3 text-ui-xs text-[var(--color-foreground-subtlest)]">No events in the selected range.</div>}
 
         {view !== "turns" && filtered.map(r => (
           <div key={r.key}>
             {r.turnStart != null && (
-              <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 2px 4px" }}>
-                <span style={{ width: 7, height: 7, borderRadius: 999, background: "#e04343" }} />
-                <span style={{ fontSize: 10, color: "#a3a3a3", fontWeight: 700 }}>Turn {r.turnStart}</span>
+              <div className="flex items-center gap-2 pb-1 pt-2.5">
+                <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-[var(--color-foreground-subtle)]" />
+                <span className="text-ui-xs font-semibold text-[var(--color-fg)]">Turn {r.turnStart}</span>
               </div>
             )}
             <div
               data-rowkey={r.key}
               onClick={() => select(r.key)}
-              style={{ display: "flex", gap: 8, alignItems: "flex-start", padding: "5px 4px", cursor: "pointer", background: selKey === r.key ? "#242424" : "transparent", borderRadius: 6 }}
+              className={cn(
+                "flex cursor-pointer items-start gap-2 rounded-[var(--radius-sm)] px-1 py-1",
+                selKey === r.key && "bg-[var(--color-selected)]",
+              )}
             >
-              <span style={{
-                flex: "none", width: 7, height: 7, borderRadius: 999, marginTop: 5,
-                background: selKey === r.key ? BADGE_COLOR[r.badge] : "transparent",
-                border: `1.5px solid ${BADGE_COLOR[r.badge]}`,
-              }} />
-              <span style={{
-                flex: "none", width: 64, textAlign: "center", fontSize: 8.5, fontWeight: 700, letterSpacing: 0.4,
-                color: BADGE_COLOR[r.badge], background: "#232323", border: "1px solid #ffffff26",
-                borderRadius: 5, padding: "2px 0", marginTop: 2,
-              }}>{r.badge}</span>
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <span
+                aria-hidden
+                className={cn(
+                  "mt-1.5 size-[7px] shrink-0 rounded-full",
+                  selKey === r.key
+                    ? "bg-[var(--color-accent)]"
+                    : "border-[1.5px] border-[var(--color-foreground-subtlest)]",
+                )}
+              />
+              <span className="w-16 shrink-0 pt-0.5 text-center font-mono text-[9px] font-bold uppercase tracking-wide text-[var(--color-foreground-subtlest)]">
+                {r.badge}
+              </span>
+              <div className="min-w-0 flex-1">
                 {r.e.kind === "tool_call" ? (
-                  <span style={{ fontFamily: mono, fontSize: 11, color: "#d6d6d6", display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {String(r.e.name ?? "")} <span style={{ color: "#8f8f8f" }}>{JSON.stringify(r.e.args ?? {}).slice(0, 60)}</span>
+                  <span className="block truncate font-mono text-ui-xs text-[var(--color-foreground-subtle)]">
+                    {String(r.e.name ?? "")} <span className="text-[var(--color-foreground-subtlest)]">{JSON.stringify(r.e.args ?? {}).slice(0, 60)}</span>
                     {r.e2
-                      ? <span> → <span style={{ color: "#b0b0b0" }}>{String(r.e2.result ?? "").replace(/\n/g, " ").slice(0, 90)}…</span></span>
-                      : <span style={{ color: "#e0608a" }}> TOOL_OUTCOME_UNKNOWN</span>}
+                      ? <span> → <span>{String(r.e2.result ?? "").replace(/\n/g, " ").slice(0, 90)}…</span></span>
+                      : <span className="text-[var(--color-warning)]"> TOOL_OUTCOME_UNKNOWN</span>}
                   </span>
                 ) : (
-                  <span style={{ fontSize: 11.5, color: "#d6d6d6", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{r.text}</span>
+                  <span className="line-clamp-2 text-ui-xs text-[var(--color-foreground-subtle)]">{r.text}</span>
                 )}
                 {open.has(r.key) && (
                   <pre className="tool-result" style={{ maxHeight: 220, margin: "6px 0 4px", whiteSpace: "pre-wrap" }}>
@@ -472,7 +510,15 @@ export function TrajectoryView({ sessionId }: { sessionId: string | null }) {
                   </pre>
                 )}
               </div>
-              <button onClick={e => { e.stopPropagation(); setOpen(prev => { const n = new Set(prev); if (n.has(r.key)) n.delete(r.key); else n.add(r.key); return n; }); }} style={{ background: "transparent", border: "none", color: "#7d7d7d", cursor: "pointer", padding: 2 }}>{open.has(r.key) ? "−" : "+"}</button>
+              <button
+                type="button"
+                aria-label={open.has(r.key) ? "Collapse details" : "Expand details"}
+                aria-expanded={open.has(r.key)}
+                onClick={e => { e.stopPropagation(); setOpen(prev => { const n = new Set(prev); if (n.has(r.key)) n.delete(r.key); else n.add(r.key); return n; }); }}
+                className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full text-[var(--color-foreground-subtlest)] transition-colors duration-200 hover:bg-[var(--color-hover)] hover:text-[var(--color-fg)]"
+              >
+                <ChevronDownIcon size={13} className={cn("transition-transform duration-[var(--duration-fast)]", open.has(r.key) && "rotate-180")} />
+              </button>
             </div>
           </div>
         ))}
@@ -481,19 +527,19 @@ export function TrajectoryView({ sessionId }: { sessionId: string | null }) {
           const map = new Map<number, Row[]>();
           for (const r of visibleRows) { const t = r.e.turn ?? 0; if (!map.has(t)) map.set(t, []); map.get(t)!.push(r); }
           return [...map.entries()].sort((a, b) => b[0] - a[0]).map(([turn, rs]) => (
-            <div key={turn} style={{ border: "1px solid var(--color-border)", borderRadius: 10, padding: 10, margin: "8px 2px", background: "var(--color-surface)" }}>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-                <span style={{ width: 7, height: 7, borderRadius: 999, background: "#e04343" }} />
-                <span style={{ fontWeight: 700, fontSize: 12 }}>Turn {turn}</span>
+            <div key={turn} className="mx-0.5 my-2 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-2.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-[var(--color-foreground-subtle)]" />
+                <span className="text-ui-xs font-semibold text-[var(--color-fg)]">Turn {turn}</span>
                 {rs.filter(r => r.e.kind === "response").map((r, i) => (
-                  <span key={i} style={{ fontSize: 10, color: "var(--color-foreground-subtle)", fontFamily: mono }}>r{String(r.e.round)} {fmtMs(Number(r.e.totalMs ?? 0))}</span>
+                  <span key={i} className="font-mono text-ui-2xs text-[var(--color-foreground-subtlest)]">r{String(r.e.round)} {fmtMs(Number(r.e.totalMs ?? 0))}</span>
                 ))}
               </div>
               {rs.filter(r => ["reasoning", "tool_call", "content", "user"].includes(r.e.kind)).map(r => (
-                <div key={r.key} style={{ marginTop: 6 }}>
-                  <button onClick={() => select(r.key)} style={{ display: "flex", gap: 6, background: "transparent", border: "none", padding: 0, cursor: "pointer" }}>
-                    <span style={{ fontSize: 9, fontWeight: 700, color: BADGE_COLOR[r.badge] }}>{r.badge}</span>
-                    <span style={{ fontSize: 11, color: "#c8c8c8" }}>{r.text.slice(0, 90)}</span>
+                <div key={r.key} className="mt-1.5">
+                  <button type="button" onClick={() => select(r.key)} className="flex items-baseline gap-2 text-left">
+                    <span className="shrink-0 font-mono text-[9px] font-bold uppercase text-[var(--color-foreground-subtlest)]">{r.badge}</span>
+                    <span className="truncate text-ui-xs text-[var(--color-foreground-subtle)]">{r.text.slice(0, 90)}</span>
                   </button>
                 </div>
               ))}
@@ -517,59 +563,80 @@ export function TrajectoryView({ sessionId }: { sessionId: string | null }) {
         const total = Number(resp?.totalMs ?? 0);
         const ttft = Number(resp?.firstChunkMs ?? 0);
         return (
-          <div style={{ position: "absolute", top: 44, right: 8, bottom: 36, width: "min(400px, 94%)", background: "#1c1c1c", border: "1px solid #ffffff3b", borderRadius: 12, zIndex: 1600, display: "flex", flexDirection: "column", boxShadow: "0 12px 32px rgba(0,0,0,.55)" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", borderBottom: "1px solid #ffffff1f" }}>
-              <span style={{ fontSize: 9, fontWeight: 700, color: BADGE_COLOR[selRow.badge], background: "#262626", border: "1px solid #ffffff30", borderRadius: 4, padding: "2px 6px" }}>{isTool ? "TOOL" : selRow.badge}</span>
-              <span style={{ fontSize: 11.5, fontWeight: 700, flex: 1 }}>
+          <div className="absolute bottom-9 right-2 top-11 z-[1600] flex w-[min(400px,94%)] flex-col rounded-[var(--radius-lg)] border border-[var(--color-popover-border)] bg-[var(--color-menu)] shadow-[var(--shadow-lg)]">
+            <div className="flex items-center gap-2 border-b border-[var(--color-border)] px-3 py-2">
+              <span className="shrink-0 font-mono text-ui-2xs font-bold uppercase tracking-wide text-[var(--color-foreground-subtlest)]">
+                {isTool ? "TOOL" : selRow.badge}
+              </span>
+              <span className="min-w-0 flex-1 truncate text-ui-xs font-semibold text-[var(--color-fg)]">
                 {isTool ? `${String(selRow.e.name ?? "")} · Turn ${String(selRow.e.turn ?? "")} · Step ${selRow.key}` : `${selRow.badge} Turn ${String(selRow.e.turn ?? "")} · Step ${selRow.key}`}
               </span>
-              <button onClick={() => setSelKey(null)} style={{ background: "transparent", border: "none", color: "#a3a3a3", cursor: "pointer" }}>×</button>
+              <button
+                type="button"
+                aria-label="Close inspector"
+                onClick={() => setSelKey(null)}
+                className="sp-iconbtn"
+              >
+                <XIcon size={13} />
+              </button>
             </div>
-            <div style={{ display: "flex", gap: 14, padding: "7px 12px", borderBottom: "1px solid #ffffff1f" }}>
+            <div className="flex gap-3.5 border-b border-[var(--color-border)] px-3 py-1.5">
               {(["summary", "preview", "raw"] as const).map(tb => (
-                <button key={tb} onClick={() => setSelTab(tb)} style={{ background: "transparent", border: "none", cursor: "pointer", fontSize: 11, fontWeight: 600, padding: "2px 0", color: selTab === tb ? "#ececec" : "#a3a3a3", borderBottom: selTab === tb ? "2px solid #5a8ad8" : "2px solid transparent", textTransform: "capitalize" }}>{tb}</button>
+                <button
+                  key={tb}
+                  type="button"
+                  onClick={() => setSelTab(tb)}
+                  className={cn(
+                    "border-b-2 pb-0.5 text-ui-xs font-semibold capitalize transition-colors duration-200",
+                    selTab === tb
+                      ? "border-[var(--color-fg)] text-[var(--color-fg)]"
+                      : "border-transparent text-[var(--color-foreground-subtlest)] hover:text-[var(--color-fg)]",
+                  )}
+                >
+                  {tb}
+                </button>
               ))}
             </div>
-            <div style={{ flex: 1, overflowY: "auto", padding: 12 }}>
+            <div className="min-h-0 flex-1 overflow-y-auto p-3">
               {selTab === "summary" && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 7, fontSize: 11.5 }}>
+                <div className="flex flex-col gap-1.5 text-ui-xs">
                   {!isTool && (
                     <>
-                      <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "#a3a3a3" }}>Source</span><span>Request #{String(selRow.e.round ?? 0)}</span></div>
-                      <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "#a3a3a3" }}>Status</span><span style={{ color: "#3fa14b" }}>{String(resp?.status ?? "—") === "ok" ? "Completed" : String(resp?.status ?? "—")}</span></div>
-                      <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "#a3a3a3" }}>Tokens</span><span>{u ? fmtTok(u.completion) : "—"}</span></div>
-                      <div style={{ display: "flex", justifyContent: "space-between", paddingLeft: 14 }}><span style={{ color: "#a3a3a3" }}>Reasoning</span><span>{fmtTok(u?.reasoning ?? 0)}</span></div>
-                      <div style={{ display: "flex", justifyContent: "space-between", paddingLeft: 14 }}><span style={{ color: "#a3a3a3" }}>Content</span><span>{u ? fmtTok(u.completion - u.reasoning) : "—"}</span></div>
-                      <div style={{ marginTop: 8, fontWeight: 700, fontSize: 10, color: "#a3a3a3", letterSpacing: 0.5 }}>REQUEST TIMING</div>
-                      <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "#a3a3a3" }}>Started</span><span style={{ fontFamily: mono }}>{req?.ts ? new Date(String(req.ts)).toLocaleTimeString() : "—"}</span></div>
-                      <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "#a3a3a3" }}>Total duration</span><span style={{ fontFamily: mono }}>{(total / 1000).toFixed(1)}s</span></div>
-                      <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "#a3a3a3" }}>TTFT</span><span style={{ fontFamily: mono }}>{(ttft / 1000).toFixed(2)}s</span></div>
-                      <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "#a3a3a3" }}>Generation</span><span style={{ fontFamily: mono }}>{((total - ttft) / 1000).toFixed(1)}s</span></div>
+                      <div className="flex justify-between gap-3"><span className="text-[var(--color-foreground-subtlest)]">Source</span><span className="text-[var(--color-fg)]">Request #{String(selRow.e.round ?? 0)}</span></div>
+                      <div className="flex justify-between gap-3"><span className="text-[var(--color-foreground-subtlest)]">Status</span><span className="text-[var(--color-fg)]">{String(resp?.status ?? "—") === "ok" ? "Completed" : String(resp?.status ?? "—")}</span></div>
+                      <div className="flex justify-between gap-3"><span className="text-[var(--color-foreground-subtlest)]">Tokens</span><span className="font-mono tabular-nums text-[var(--color-fg)]">{u ? fmtTok(u.completion) : "—"}</span></div>
+                      <div className="flex justify-between gap-3 pl-3.5"><span className="text-[var(--color-foreground-subtlest)]">Reasoning</span><span className="font-mono tabular-nums text-[var(--color-fg)]">{fmtTok(u?.reasoning ?? 0)}</span></div>
+                      <div className="flex justify-between gap-3 pl-3.5"><span className="text-[var(--color-foreground-subtlest)]">Content</span><span className="font-mono tabular-nums text-[var(--color-fg)]">{u ? fmtTok(u.completion - u.reasoning) : "—"}</span></div>
+                      <div className="mt-2 font-mono text-ui-2xs font-bold uppercase tracking-wide text-[var(--color-foreground-subtlest)]">Request timing</div>
+                      <div className="flex justify-between gap-3"><span className="text-[var(--color-foreground-subtlest)]">Started</span><span className="font-mono text-[var(--color-fg)]">{req?.ts ? new Date(String(req.ts)).toLocaleTimeString() : "—"}</span></div>
+                      <div className="flex justify-between gap-3"><span className="text-[var(--color-foreground-subtlest)]">Total duration</span><span className="font-mono tabular-nums text-[var(--color-fg)]">{(total / 1000).toFixed(1)}s</span></div>
+                      <div className="flex justify-between gap-3"><span className="text-[var(--color-foreground-subtlest)]">TTFT</span><span className="font-mono tabular-nums text-[var(--color-fg)]">{(ttft / 1000).toFixed(2)}s</span></div>
+                      <div className="flex justify-between gap-3"><span className="text-[var(--color-foreground-subtlest)]">Generation</span><span className="font-mono tabular-nums text-[var(--color-fg)]">{((total - ttft) / 1000).toFixed(1)}s</span></div>
                     </>
                   )}
                   {isTool && (
                     <>
-                      <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "#a3a3a3" }}>Tool</span><span style={{ fontFamily: mono }}>{String(selRow.e.name ?? "")}</span></div>
-                      <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "#a3a3a3" }}>Status</span><span style={{ color: selRow.e2 ? "#3fa14b" : "#e0608a" }}>{selRow.e2 ? "Completed" : "Unknown"}</span></div>
-                      <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "#a3a3a3" }}>Duration</span><span style={{ fontFamily: mono }}>{selRow.e2?.ms != null ? `${selRow.e2.ms}ms` : "—"}</span></div>
+                      <div className="flex justify-between gap-3"><span className="text-[var(--color-foreground-subtlest)]">Tool</span><span className="font-mono text-[var(--color-fg)]">{String(selRow.e.name ?? "")}</span></div>
+                      <div className="flex justify-between gap-3"><span className="text-[var(--color-foreground-subtlest)]">Status</span><span className={cn("text-[var(--color-fg)]", !selRow.e2 && "text-[var(--color-warning)]")}>{selRow.e2 ? "Completed" : "Unknown"}</span></div>
+                      <div className="flex justify-between gap-3"><span className="text-[var(--color-foreground-subtlest)]">Duration</span><span className="font-mono tabular-nums text-[var(--color-fg)]">{selRow.e2?.ms != null ? `${selRow.e2.ms}ms` : "—"}</span></div>
                     </>
                   )}
                 </div>
               )}
               {selTab === "preview" && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 11 }}>
+                <div className="flex flex-col gap-2 text-ui-xs">
                   {isTool ? (
                     <>
-                      <div style={{ fontWeight: 700, color: "#a3a3a3", fontSize: 10 }}>ARGS</div>
+                      <div className="font-mono text-ui-2xs font-bold uppercase tracking-wide text-[var(--color-foreground-subtlest)]">Args</div>
                       <pre className="tool-result" style={{ maxHeight: 140 }}>{JSON.stringify(selRow.e.args ?? {}, null, 2)}</pre>
-                      <div style={{ fontWeight: 700, color: "#a3a3a3", fontSize: 10 }}>RESULT</div>
+                      <div className="font-mono text-ui-2xs font-bold uppercase tracking-wide text-[var(--color-foreground-subtlest)]">Result</div>
                       <pre className="tool-result" style={{ maxHeight: 200 }}>{String(selRow.e2?.result ?? "(none)")}</pre>
                     </>
                   ) : (
                     <>
-                      {think && (<><div style={{ fontWeight: 700, color: "#b07fd8", fontSize: 10 }}>[thinking]</div><pre className="tool-result" style={{ maxHeight: 180 }}>{think}</pre></>)}
-                      {contents && (<><div style={{ fontWeight: 700, color: "#a3a3a3", fontSize: 10 }}>CONTENT</div><pre className="tool-result" style={{ maxHeight: 180 }}>{contents}</pre></>)}
-                      {tools.length > 0 && (<><div style={{ fontWeight: 700, color: "#d89a3f", fontSize: 10 }}>TOOL CALLS</div>{tools.map((tl, i) => <pre key={i} className="tool-result" style={{ maxHeight: 100 }}>{String(tl.name ?? "")} {String(tl.args ?? "")}</pre>)}</>)}
+                      {think && (<><div className="font-mono text-ui-2xs font-bold uppercase tracking-wide text-[var(--color-foreground-subtlest)]">Thinking</div><pre className="tool-result" style={{ maxHeight: 180 }}>{think}</pre></>)}
+                      {contents && (<><div className="font-mono text-ui-2xs font-bold uppercase tracking-wide text-[var(--color-foreground-subtlest)]">Content</div><pre className="tool-result" style={{ maxHeight: 180 }}>{contents}</pre></>)}
+                      {tools.length > 0 && (<><div className="font-mono text-ui-2xs font-bold uppercase tracking-wide text-[var(--color-foreground-subtlest)]">Tool calls</div>{tools.map((tl, i) => <pre key={i} className="tool-result" style={{ maxHeight: 100 }}>{String(tl.name ?? "")} {String(tl.args ?? "")}</pre>)}</>)}
                     </>
                   )}
                 </div>
@@ -581,15 +648,15 @@ export function TrajectoryView({ sessionId }: { sessionId: string | null }) {
       })()}
 
       {/* Footer stats — dsh format */}
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", padding: "7px 10px", borderTop: "1px solid var(--color-border)", fontSize: 10, color: "#a3a3a3" }}>
+      <div className="flex flex-wrap gap-x-2.5 gap-y-1 border-t border-[var(--color-border)] px-2.5 py-1.5 font-mono text-ui-2xs text-[var(--color-foreground-subtlest)]">
         <span>{stats.turns} turns · {stats.steps} steps</span>
-        <span style={{ color: "#4d4d4d" }}>|</span>
+        <span aria-hidden className="text-[var(--color-border-hover)]">|</span>
         <span>LLM {fmtMs(stats.llmMs)} · Tool call {fmtMs(stats.toolMs)}</span>
-        <span style={{ color: "#4d4d4d" }}>|</span>
+        <span aria-hidden className="text-[var(--color-border-hover)]">|</span>
         <span>TTFT avg {fmtMs(stats.ttft)} · {Math.round(stats.tps)} tok/s</span>
-        <span style={{ color: "#4d4d4d" }}>|</span>
+        <span aria-hidden className="text-[var(--color-border-hover)]">|</span>
         <span>Cache hit {Math.round(stats.cache * 100)}%</span>
-        <span style={{ color: "#4d4d4d" }}>|</span>
+        <span aria-hidden className="text-[var(--color-border-hover)]">|</span>
         <span>Input {fmtTok(stats.inTok)} tok · Output {fmtTok(stats.outTok)} tok</span>
       </div>
     </div>

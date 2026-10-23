@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { ConversationEmptyState } from "@/components/ai-elements/conversation";
 import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { Suggestion, Suggestions } from "@/components/ai-elements/suggestion";
@@ -284,12 +283,20 @@ export function ChatView() {
     [bumpSessionList, currentSessionId, setCurrentSessionId]
   );
 
+  /*
+   * The prototype's empty state (OneUIDemo EmptyState): no hero icon — the
+   * boxed robot/sparkle tile is the AI-app cliché and was removed there —
+   * just the headline, one supporting line, and the real quick prompts as
+   * quiet pills. The pills still create a session and send their prompt for
+   * real; only the dress is from the prototype.
+   */
   const emptyState = (
-    <>
-      <ConversationEmptyState
-        description="Ask me to write code, brainstorm, debug, explain… or anything else."
-        title="What's on your mind?"
-      />
+    <div className="rcode-empty">
+      <div className="rcode-empty-title">What are we building?</div>
+      <p className="rcode-empty-description">
+        Pick up a session on the left, or start something new. Rcode runs
+        locally against your workspace.
+      </p>
       <div className="rcode-quick-prompts">
         <Suggestions>
           {QUICK_PROMPTS.map(prompt => (
@@ -303,7 +310,7 @@ export function ChatView() {
           ))}
         </Suggestions>
       </div>
-    </>
+    </div>
   );
 
   return (

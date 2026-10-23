@@ -28,16 +28,16 @@ function BrowserPane() {
   return (
     <div className="browser-pane">
       <div className="browser-pane-bar">
-        <GlobeIcon size={14} />
+        <GlobeIcon size={14} className="shrink-0 text-[var(--color-foreground-subtlest)]" />
         <span className="browser-pane-url">{url}</span>
         <button
-          className="browser-pane-reload"
+          className="sp-iconbtn"
           aria-label="Reload preview"
           onClick={reload}
           title="Reload preview"
           type="button"
         >
-          <RefreshIcon size={13} />
+          <RefreshIcon size={14} />
         </button>
       </div>
       <div className="browser-pane-frame">

@@ -1,16 +1,32 @@
 /*
- * PURPOSE: Right side panel — Rcode tab system
+ * PURPOSE: Right side panel — tab system in the One UI language
  *
- * Tabs are dynamic instances: Terminal, Side conversation, Review, Browser.
- * Header has a dropdown (Search tabs... + Open tabs + Recently closed + New tab types).
- * Matches Images 1-5: red-box pane with pill tabs Terminal / Side conversation 1.
+ * The design source of truth is the prototype's side panel
+ * (src/components/dev/OneUIDemo.tsx + .oui-sp-* rules in src/oneui.css):
+ * a pill tab rail where side chats sync in beside terminal / review /
+ * browser / trajectory tabs, an add-tab picker, a tab manager with search +
+ * recently closed, and per-tab close. The panes are the real ones — this file
+ * only carries the rail, the menus and the empty state; every pane keeps its
+ * own data flow (SQLite side chats, PTY terminal, git IPC, trace IPC).
+ *
+ * Pills, not a segmented control: the tab set is open-ended (every side chat
+ * becomes a tab, terminals multiply), widths vary with their titles, each tab
+ * carries its own close action, and the rail scrolls when it overflows. The
+ * rail hides its scrollbar and shows edge fades only on the sides that
+ * actually overflow, so a short tab list never wears a fake cut-off. The
+ * active pill takes the neutral --color-selected fill, like selected session
+ * rows — the accent stays with the panes' primary actions and selection
+ * markers.
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type CSSProperties } from "react";
 
 import { useApp } from "../../state/AppContext";
 import { api } from "../../api/client";
 import { useSideChats } from "../../state/useSideChats";
+import { cn } from "../../lib/utils";
+
+import { Input } from "../ui/input";
 
 import {
   XIcon,
@@ -19,7 +35,6 @@ import {
   GlobeIcon,
   TerminalSquareIcon,
   PlusIcon,
-  SearchIcon,
   HistoryIcon,
   ActivityIcon,
   ChevronDownIcon,
@@ -47,6 +62,8 @@ const TAB_DEFS: Record<ZTabType, { label: string; Icon: React.FC<{ size?: number
   trajectory: { label: "Trajectory", Icon: ActivityIcon },
 };
 
+const TAB_TYPES = Object.keys(TAB_DEFS) as ZTabType[];
+
 function fmtAgo(ts?: number): string {
   if (!ts) return "";
   const m = Math.max(1, Math.round((Date.now() - ts) / 60000));
@@ -56,7 +73,123 @@ function fmtAgo(ts?: number): string {
   return `${Math.round(h / 24)}d`;
 }
 
-export function SidePanel({ collapsed, width, onToggleCollapse }: { collapsed?: boolean; width?: number; onToggleCollapse?: () => void } = {}) {
+/** Prototype empty state: the five tab types as quiet rows, no card boxes. */
+function SidePanelEmpty({ onOpen }: { onOpen: (type: ZTabType) => void }) {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-6 text-center">
+      <div className="text-ui-sm font-medium text-[var(--color-fg)]">No tabs open</div>
+      <p className="mt-1 text-ui-xs text-[var(--color-foreground-subtlest)]">
+        Open a tool, or pick up a side conversation.
+      </p>
+      <div className="mt-4 flex w-full flex-col gap-0.5">
+        {TAB_TYPES.map(type => {
+          const Def = TAB_DEFS[type];
+          return (
+            <button
+              key={type}
+              type="button"
+              onClick={() => onOpen(type)}
+              className="flex min-h-11 w-full items-center gap-3 rounded-[var(--radius-md)] px-3 text-left text-ui-sm text-[var(--color-foreground-subtle)] transition-colors duration-200 hover:bg-[var(--color-hover)] hover:text-[var(--color-fg)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--color-accent)]"
+            >
+              <Def.Icon size={16} className="shrink-0" />
+              {Def.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Fallback shown when the active side-conversation tab has no live DB row
+ * (the placeholder tab created when a side chat was requested with no
+ * session): an index of the session's real open and closed side chats.
+ */
+function SideChatIndex({
+  sideTabs,
+  sideClosedTabs,
+  activeId,
+  onOpen,
+  onClose,
+  onReopen,
+}: {
+  sideTabs: Array<{ sideChatId: string; sideChatTitle?: string }>;
+  sideClosedTabs: Array<{ id: string; sideChatId: string; sideChatTitle?: string }>;
+  activeId: string;
+  onOpen: (sideChatId: string) => void;
+  onClose: (sideChatId: string) => void;
+  onReopen: (tabId: string, title: string) => void;
+}) {
+  const title = (t: { sideChatTitle?: string; sideChatId: string }) =>
+    t.sideChatTitle?.trim() ? t.sideChatTitle : t.sideChatId.slice(0, 8);
+
+  return (
+    <div className="sidechat-index">
+      <div className="sidechat-index-label">
+        Side conversations · {sideTabs.length} open · {sideClosedTabs.length} closed
+      </div>
+      {sideTabs.length === 0 && sideClosedTabs.length === 0 ? (
+        <div className="sidechat-index-empty">
+          <div className="sidechat-index-empty-title">
+            No side chats yet. Select text in the main chat and right-click → Create side chat.
+          </div>
+        </div>
+      ) : (
+        <>
+          {sideTabs.length > 0 && (
+            <div className="flex flex-col gap-0.5">
+              {sideTabs.map(t => (
+                <div key={t.sideChatId} className="sidechat-item">
+                  <button
+                    type="button"
+                    className={cn("sidechat-item-open", t.sideChatId === activeId && "active")}
+                    onClick={() => onOpen(t.sideChatId)}
+                  >
+                    <MessageCircleIcon size={14} />
+                    <span className="sidechat-item-title">{title(t)}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="sidechat-item-close"
+                    aria-label={`Close ${title(t)}`}
+                    onClick={() => onClose(t.sideChatId)}
+                  >
+                    <XIcon size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          {sideClosedTabs.length > 0 && (
+            <div className="mt-2.5">
+              <div className="sidechat-index-label">Recently closed</div>
+              <div className="flex flex-col gap-0.5">
+                {sideClosedTabs.map(t => (
+                  <div key={t.id} className="sidechat-item sidechat-item-closed">
+                    <span className="sidechat-item-open">
+                      <HistoryIcon size={14} />
+                      <span className="sidechat-item-title">{title(t)}</span>
+                    </span>
+                    <button
+                      type="button"
+                      className="sidechat-item-reopen"
+                      onClick={() => onReopen(t.id, title(t))}
+                    >
+                      Reopen
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+export function SidePanel({ collapsed, width, onToggleCollapse: _onToggleCollapse }: { collapsed?: boolean; width?: number; onToggleCollapse?: () => void } = {}) {
   const { currentSessionId, sideChatVersion, settings, bumpSideChats, setHasSideChats } = useApp();
   const { tabs: sideTabs, closedTabs: sideClosedTabs, closeTab: closeSideChatTab, reopenTab: reopenSideChatTab } = useSideChats(currentSessionId, sideChatVersion);
   const [openTabs, setOpenTabs] = useState<ZTab[]>([]);
@@ -65,6 +198,18 @@ export function SidePanel({ collapsed, width, onToggleCollapse }: { collapsed?: 
   const [showManager, setShowManager] = useState(false);
   const [tabSearch, setTabSearch] = useState("");
   const [recentlyClosed, setRecentlyClosed] = useState<ZTab[]>([]);
+  const [overflow, setOverflow] = useState({ start: false, end: false });
+
+  const railRef = useRef<HTMLDivElement>(null);
+  const tabRefs = useRef(new Map<string, HTMLButtonElement>());
+  const scopeId = useId();
+
+  // The panel collapses to width 0; the fixed-width inner needs the last open
+  // width to hold its layout during the animation — same mechanism the left
+  // drawer uses (--panel-sessions-w).
+  const lastOpenWidth = useRef(width ?? 320);
+  if (!collapsed && width) lastOpenWidth.current = width;
+  const panelVar = { "--panel-side-w": `${lastOpenWidth.current}px` } as CSSProperties;
 
   const activeTab = openTabs.find(t => t.id === activeId) ?? openTabs[0];
 
@@ -156,26 +301,6 @@ export function SidePanel({ collapsed, width, onToggleCollapse }: { collapsed?: 
     if (activeId === id && next.length) setActiveId(next[0].id);
   }, [openTabs, activeId]);
 
-  const reopenRecent = useCallback((tab: ZTab) => {
-    setOpenTabs(prev => [...prev, tab]);
-    setActiveId(tab.id);
-    setRecentlyClosed(prev => prev.filter(t => t.id !== tab.id));
-  }, []);
-
-  // Dismiss dropdowns on outside click
-  useEffect(() => {
-    if (!showPicker && !showManager) return;
-    const onDown = (e: PointerEvent) => {
-      const el = e.target as HTMLElement;
-      if (!el.closest("[data-sp-menu]") && !el.closest("[data-sp-trigger]")) {
-        setShowPicker(false);
-        setShowManager(false);
-      }
-    };
-    document.addEventListener("pointerdown", onDown);
-    return () => document.removeEventListener("pointerdown", onDown);
-  }, [showPicker, showManager]);
-
   // Local close/reopen already refreshes via useSideChats internal refresh() — no bump needed (avoids double fetch)
   const handleCloseSideChat = async (tabId: string) => {
     try {
@@ -186,20 +311,6 @@ export function SidePanel({ collapsed, width, onToggleCollapse }: { collapsed?: 
       console.error("closeSideChat failed", e);
     }
   };
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const ce = e as CustomEvent<{ type: ZTabType; sideChatId?: string }>;
-      if (!ce.detail?.type) return;
-      if (ce.detail.type === "side-conversation" && ce.detail.sideChatId) {
-        setActiveId(ce.detail.sideChatId);
-        setShowPicker(false);
-        return;
-      }
-      openNewTab(ce.detail.type);
-    };
-    window.addEventListener("sidepanel:new-tab", handler as EventListener);
-    return () => window.removeEventListener("sidepanel:new-tab", handler as EventListener);
-  }, [openNewTab]);
 
   const handleReopenSideChat = async (tabId: string) => {
     try {
@@ -209,38 +320,178 @@ export function SidePanel({ collapsed, width, onToggleCollapse }: { collapsed?: 
     }
   };
 
+  // Plain per-render handlers (not memoised): they close over the fresh
+  // sideTabs rows that the side-chat IPC calls need to resolve.
+  const closePill = (tab: ZTab) => {
+    if (tab.type === "side-conversation") void handleCloseSideChat(tab.id);
+    closeTab(tab.id);
+  };
+
+  /**
+   * Reopen from the manager. Side chats live in SQLite — a local append would
+   * be wiped by the next DB sync, so their rows go back through the side-chat
+   * IPC and the sync effect re-mounts the pill; plain panes stay local.
+   */
+  const reopenRecent = (tab: ZTab) => {
+    if (tab.type === "side-conversation") {
+      void handleReopenSideChat(tab.id);
+      setActiveId(tab.id);
+      setRecentlyClosed(prev => prev.filter(t => t.id !== tab.id));
+      return;
+    }
+    setOpenTabs(prev => [...prev, tab]);
+    setActiveId(tab.id);
+    setRecentlyClosed(prev => prev.filter(t => t.id !== tab.id));
+  };
+
+  // Dismiss dropdowns on outside click or Escape; the trigger buttons are
+  // exempt so the toggle click never fights the dismissal.
+  useEffect(() => {
+    if (!showPicker && !showManager) return;
+    const onDown = (e: PointerEvent) => {
+      const el = e.target as HTMLElement;
+      if (!el.closest("[data-sp-menu]") && !el.closest("[data-sp-trigger]")) {
+        setShowPicker(false);
+        setShowManager(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setShowPicker(false);
+        setShowManager(false);
+      }
+    };
+    document.addEventListener("pointerdown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [showPicker, showManager]);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const ce = e as CustomEvent<{ type: ZTabType; sideChatId?: string }>;
+      if (!ce.detail?.type) return;
+      if (ce.detail.type === "side-conversation" && ce.detail.sideChatId) {
+        setActiveId(ce.detail.sideChatId);
+        setShowPicker(false);
+        return;
+      }
+      void openNewTab(ce.detail.type);
+    };
+    window.addEventListener("sidepanel:new-tab", handler as EventListener);
+    return () => window.removeEventListener("sidepanel:new-tab", handler as EventListener);
+  }, [openNewTab]);
+
+  // Edge fades only when the rail actually overflows, so a short tab list
+  // never wears a fake cut-off.
+  const updateOverflow = useCallback(() => {
+    const el = railRef.current;
+    if (!el) return;
+    const start = el.scrollLeft > 2;
+    const end = el.scrollLeft + el.clientWidth < el.scrollWidth - 2;
+    setOverflow(prev => (prev.start === start && prev.end === end ? prev : { start, end }));
+  }, []);
+  useEffect(() => {
+    updateOverflow();
+    const el = railRef.current;
+    if (!el) return;
+    el.addEventListener("scroll", updateOverflow, { passive: true });
+    const ro = new ResizeObserver(updateOverflow);
+    ro.observe(el);
+    return () => {
+      el.removeEventListener("scroll", updateOverflow);
+      ro.disconnect();
+    };
+  }, [updateOverflow, openTabs]);
+
+  // Keep the active pill in view when activation comes from the keyboard or
+  // from closing a neighbour.
+  useEffect(() => {
+    tabRefs.current.get(activeId)?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [activeId]);
+
+  // Roving tabindex on the rail: arrows move and activate, Home/End jump.
+  const onRailKeyDown = (e: React.KeyboardEvent) => {
+    const dir = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+    if (dir === 0 && e.key !== "Home" && e.key !== "End") return;
+    e.preventDefault();
+    if (openTabs.length === 0) return;
+    const idx = Math.max(0, openTabs.findIndex(t => t.id === activeTab?.id));
+    const next =
+      e.key === "Home" ? 0 : e.key === "End" ? openTabs.length - 1 : (idx + dir + openTabs.length) % openTabs.length;
+    const tab = openTabs[next];
+    if (!tab) return;
+    setActiveId(tab.id);
+    tabRefs.current.get(tab.id)?.focus();
+  };
+
+  const q = tabSearch.trim().toLowerCase();
+  const managerOpenTabs = openTabs.filter(t => TAB_DEFS[t.type] && (!q || t.title.toLowerCase().includes(q)));
+  const managerClosed = recentlyClosed.filter(t => !q || t.title.toLowerCase().includes(q));
+
   return (
-    <aside className="panel-side" aria-label="Side panel" style={{display: collapsed ? 'none' : 'flex', width: collapsed ? 0 : (width ? `${width}px` : undefined), minWidth: collapsed ? 0 : (width ? `${width}px` : undefined)}}>
-      {/* Header — chevron (tab manager) + pills + plus (new tab) */}
+    <aside
+      className="panel-side"
+      aria-label="Side panel"
+      data-collapsed={collapsed || undefined}
+      style={panelVar}
+    >
+      <div className="panel-side-inner">
+      {/* Header — tab manager, pill rail, new-tab picker */}
       <div className="sidepanel-toolbar">
         <button
+          type="button"
           className="sidepanel-icon-btn"
           data-sp-trigger="1"
-          onClick={() => { setShowManager(v => !v); setShowPicker(false); }}
+          aria-label="Tab list"
           title="Search tabs / resume closed tabs"
-        ><ChevronDownIcon size={14} /></button>
+          aria-expanded={showManager}
+          aria-haspopup="true"
+          onClick={() => { setShowManager(v => !v); setShowPicker(false); }}
+        ><ChevronDownIcon size={16} /></button>
 
-        <div className="sidepanel-tab-rail">
+        <div
+          ref={railRef}
+          className="sidepanel-tab-rail"
+          role="tablist"
+          aria-label="Side panel tabs"
+          data-fade-left={overflow.start || undefined}
+          data-fade-right={overflow.end || undefined}
+          onKeyDown={onRailKeyDown}
+        >
           {openTabs.filter(t => TAB_DEFS[t.type]).map(t => {
             const Def = TAB_DEFS[t.type];
+            const active = t.id === activeTab?.id;
             return (
-              <div className={`sidepanel-pill ${t.id === activeId ? "active" : ""}`} key={t.id}>
+              <div key={t.id} className="sidepanel-pill" data-active={active || undefined}>
                 <button
-                  className="sidepanel-pill-open"
-                  onClick={() => setActiveId(t.id)}
-                  title={t.title}
+                  ref={el => {
+                    if (el) tabRefs.current.set(t.id, el);
+                    else tabRefs.current.delete(t.id);
+                  }}
                   type="button"
+                  role="tab"
+                  id={`${scopeId}-tab-${t.id}`}
+                  aria-selected={active}
+                  aria-controls={`${scopeId}-pane-${t.id}`}
+                  tabIndex={active ? 0 : -1}
+                  className="sidepanel-pill-open focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--color-accent)]"
+                  title={t.title}
+                  onClick={() => setActiveId(t.id)}
                 >
-                  <Def.Icon size={13} />
-                  <span>{t.title}</span>
+                  <Def.Icon size={14} className="shrink-0" />
+                  <span className="text-ui-sm">{t.title}</span>
                 </button>
                 <button
-                  aria-label={`Close ${t.title}`}
-                  className="sidepanel-pill-close"
-                  onClick={() => { if (t.type === "side-conversation") handleCloseSideChat(t.id); closeTab(t.id); }}
                   type="button"
+                  aria-label={`Close ${t.title}`}
+                  title={`Close ${t.title}`}
+                  className="sidepanel-pill-close focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--color-accent)]"
+                  onClick={() => closePill(t)}
                 >
-                  <XIcon size={11} />
+                  <XIcon size={12} />
                 </button>
               </div>
             );
@@ -248,155 +499,135 @@ export function SidePanel({ collapsed, width, onToggleCollapse }: { collapsed?: 
         </div>
 
         <button
+          type="button"
           className="sidepanel-icon-btn"
           data-sp-trigger="1"
-          onClick={() => { setShowPicker(v => !v); setShowManager(false); }}
+          aria-label="New tab"
           title="Open a new tab"
-        ><PlusIcon size={14} /></button>
+          aria-expanded={showPicker}
+          aria-haspopup="true"
+          onClick={() => { setShowPicker(v => !v); setShowManager(false); }}
+        ><PlusIcon size={16} /></button>
 
         {showPicker && (
-          <div className="sp-menu sidepanel-menu anchored-right" data-sp-menu="1">
-            {(Object.keys(TAB_DEFS) as ZTabType[]).map(type => {
-              const D = TAB_DEFS[type];
+          <div className="sp-menu sidepanel-menu anchored-right" data-sp-menu="1" role="menu" aria-label="New tab">
+            {TAB_TYPES.map(type => {
+              const Def = TAB_DEFS[type];
+              const exists = type === "trajectory" && openTabs.some(t => t.type === type);
               return (
-                <button className="sidepanel-menu-item" key={type} onClick={() => openNewTab(type)} type="button">
-                  <D.Icon size={14} />{D.label}
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="sidepanel-menu-item"
+                  key={type}
+                  onClick={() => void openNewTab(type)}
+                >
+                  <Def.Icon size={16} />
+                  <span className="sidepanel-menu-label">{Def.label}</span>
+                  {exists && (
+                    <span className="shrink-0 text-ui-xs text-[var(--color-foreground-subtlest)]">open</span>
+                  )}
                 </button>
               );
             })}
           </div>
         )}
 
-        {showManager && (() => {
-          const q = tabSearch.toLowerCase();
-          const open = openTabs.filter(t => TAB_DEFS[t.type] && (!q || t.title.toLowerCase().includes(q)));
-          const closed = recentlyClosed.filter(t => !q || t.title.toLowerCase().includes(q));
-          return (
-            <div className="sp-menu sidepanel-menu manager" data-sp-menu="1">
-              <div className="sidepanel-search">
-                <span className="sidepanel-search-icon"><SearchIcon size={13} /></span>
-                <input className="sidepanel-search-input" value={tabSearch} onChange={e => setTabSearch(e.target.value)} placeholder="Search tabs..." autoFocus />
-              </div>
-              <div className="sidepanel-menu-heading">Open tabs</div>
-              {open.length === 0 && <div className="sidepanel-menu-empty">None</div>}
-              {open.map(t => {
-                const Def = TAB_DEFS[t.type];
-                return (
-                  <div className="sidepanel-menu-row" key={t.id}>
-                    <button
-                      className={`sidepanel-menu-item ${t.id === activeId ? "active" : ""}`}
-                      onClick={() => { setActiveId(t.id); setShowManager(false); }}
-                      type="button"
-                    >
-                      <Def.Icon size={13} />
-                      <span className="sidepanel-menu-label">{t.title}</span>
-                    </button>
-                    <button
-                      aria-label={`Close ${t.title}`}
-                      className="sidepanel-pill-close"
-                      onClick={() => { if (t.type === "side-conversation") handleCloseSideChat(t.id); closeTab(t.id); }}
-                      type="button"
-                    >
-                      <XIcon size={12} />
-                    </button>
-                  </div>
-                );
-              })}
-              <div className="sidepanel-menu-heading">Recently closed tabs</div>
-              {closed.length === 0 && <div className="sidepanel-menu-empty">None</div>}
-              {closed.map(t => {
-                const Def = TAB_DEFS[t.type];
-                return (
-                  <button className="sidepanel-menu-item muted" key={t.id} onClick={() => { reopenRecent(t); setShowManager(false); }} type="button">
-                    <Def.Icon size={13} /><span className="sidepanel-menu-label">{t.title}</span><span className="sidepanel-menu-meta">{fmtAgo(t.closedAt)}</span>
-                  </button>
-                );
-              })}
+        {showManager && (
+          <div className="sp-menu sidepanel-menu manager" data-sp-menu="1" aria-label="Tab manager">
+            <div className="p-1 pb-2">
+              <Input
+                value={tabSearch}
+                onChange={e => setTabSearch(e.target.value)}
+                placeholder="Search tabs"
+                aria-label="Search tabs"
+                autoFocus
+                className="h-10 rounded-full border-[var(--color-input-border)] bg-[var(--color-surface)] px-4 text-ui-sm shadow-none"
+              />
             </div>
-          );
-        })()}
+            <div className="sidepanel-menu-heading">Open tabs</div>
+            {managerOpenTabs.length === 0 && <div className="sidepanel-menu-empty">None</div>}
+            {managerOpenTabs.map(t => {
+              const Def = TAB_DEFS[t.type];
+              return (
+                <div className="sidepanel-menu-row" key={t.id}>
+                  <button
+                    type="button"
+                    className={cn(
+                      "sidepanel-menu-item min-w-0 flex-1",
+                      t.id === activeTab?.id && "bg-[var(--color-menu-hover)]",
+                    )}
+                    onClick={() => { setActiveId(t.id); setShowManager(false); }}
+                  >
+                    <Def.Icon size={15} />
+                    <span className="sidepanel-menu-label">{t.title}</span>
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`Close ${t.title}`}
+                    className="sidepanel-pill-close shrink-0"
+                    onClick={() => closePill(t)}
+                  >
+                    <XIcon size={12} />
+                  </button>
+                </div>
+              );
+            })}
+            <div className="sidepanel-menu-heading">Recently closed</div>
+            {managerClosed.length === 0 && <div className="sidepanel-menu-empty">None</div>}
+            {managerClosed.map(t => {
+              const Def = TAB_DEFS[t.type];
+              return (
+                <button
+                  type="button"
+                  className="sidepanel-menu-item sidepanel-menu-item-muted"
+                  key={t.id}
+                  onClick={() => { reopenRecent(t); setShowManager(false); }}
+                >
+                  <Def.Icon size={15} />
+                  <span className="sidepanel-menu-label">{t.title}</span>
+                  <span className="sidepanel-menu-meta">{fmtAgo(t.closedAt)}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
-      {/* Content */}
+      {/* Content — one pane per tab, remounted per activation for the swap fade */}
       <div className="sidepanel-content">
-        {!activeTab && (
-          <div className="sidepanel-empty-state">
-            <div className="sidepanel-empty-title">Open tab</div>
-            <div className="sidepanel-empty-description">Choose a tab to open in the side pane.</div>
-            {(Object.keys(TAB_DEFS) as ZTabType[]).map(type => {
-              const D = TAB_DEFS[type];
+        {!activeTab && <SidePanelEmpty onOpen={type => void openNewTab(type)} />}
+        {activeTab && (
+          <div
+            key={activeTab.id}
+            role="tabpanel"
+            id={`${scopeId}-pane-${activeTab.id}`}
+            aria-labelledby={`${scopeId}-tab-${activeTab.id}`}
+            className="sp-pane flex min-h-0 flex-1 flex-col"
+          >
+            {activeTab.type === "side-conversation" && (() => {
+              const liveRow = sideTabs.find(st => st.sideChatId === activeTab.id);
+              if (liveRow) {
+                return <SideChatThread sessionId={activeTab.id} title={activeTab.title} />;
+              }
               return (
-                <button className="sidepanel-choice" key={type} onClick={() => openNewTab(type)} type="button">
-                  <span className="sidepanel-choice-icon"><D.Icon size={15} /></span>
-                  {D.label}
-                </button>
+                <SideChatIndex
+                  sideTabs={sideTabs}
+                  sideClosedTabs={sideClosedTabs}
+                  activeId={activeTab.id}
+                  onOpen={setActiveId}
+                  onClose={sideChatId => { void handleCloseSideChat(sideChatId); closeTab(sideChatId); }}
+                  onReopen={(tabId, reopenTitle) => { void handleReopenSideChat(tabId); reopenRecent({ id: tabId, type: "side-conversation", title: reopenTitle }); }}
+                />
               );
-            })}
+            })()}
+            {activeTab.type === "trajectory" && <TrajectoryView sessionId={currentSessionId} />}
+            {activeTab.type === "terminal" && <TerminalPane terminalId={activeTab.id} />}
+            {activeTab.type === "review" && <GitPanel />}
+            {activeTab.type === "browser" && <BrowserPane />}
           </div>
         )}
-        {activeTab?.type === "side-conversation" && (() => {
-          const liveRow = sideTabs.find(st => st.sideChatId === activeTab.id);
-          if (liveRow) {
-            return <SideChatThread sessionId={activeTab.id} title={activeTab.title} />;
-          }
-          return (
-            <div style={{flex:1, overflowY:'auto', padding:12}}>
-              <div style={{fontSize:11, color:'#8a8a8a', marginBottom:8, textTransform:'uppercase', letterSpacing:0.5}}>Side conversations • {sideTabs.length} open • {sideClosedTabs.length} closed</div>
-              {sideTabs.length === 0 && sideClosedTabs.length === 0 ? (
-                <div style={{background:'#1e1e1e', border:'1px solid #262626', borderRadius:8, padding:12, minHeight:80}}>
-                  <div style={{fontSize:13, color:'#e8e8e8'}}>No side chats yet. Select text in the main chat and right-click → Create side chat.</div>
-                  <div style={{fontSize:12, color:'#8a8a8a', marginTop:6}}>Active tab: {activeTab.title}</div>
-                </div>
-              ) : (
-                <>
-                  {sideTabs.length > 0 && (
-                    <div style={{display:'flex', flexDirection:'column', gap:6}}>
-                      {sideTabs.map(t => (
-                        <div
-                          key={t.id}
-                          onClick={() => setActiveId(t.sideChatId)}
-                          title="Open this side chat in the panel"
-                          style={{display:'flex', alignItems:'center', gap:8, padding:'8px 10px', background: activeId === t.sideChatId ? '#252525' : '#1e1e1e', border:'1px solid #262626', borderRadius:8, cursor:'pointer'}}
-                        >
-                          <MessageCircleIcon size={12} />
-                          <span style={{flex:1, fontSize:13, color:'#e8e8e8', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{t.sideChatTitle ?? t.sideChatId.slice(0,8)}</span>
-                          <button onClick={e => { e.stopPropagation(); handleCloseSideChat(t.sideChatId); closeTab(t.sideChatId); }} title="Close" style={{background:'transparent', border:'none', color:'#8a8a8a', cursor:'pointer', padding:2}}><XIcon size={12} /></button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {sideClosedTabs.length > 0 && (
-                    <div style={{marginTop:10}}>
-                      <div style={{fontSize:11, color:'#8a8a8a', marginBottom:6}}>Recently closed</div>
-                      <div style={{display:'flex', flexDirection:'column', gap:6}}>
-                        {sideClosedTabs.map(t => (
-                          <div key={t.id} style={{display:'flex', alignItems:'center', gap:8, padding:'8px 10px', background:'#0f0f0f', border:'1px solid #1f1f1f', borderRadius:8, opacity:0.7}}>
-                            <HistoryIcon size={12} />
-                            <span style={{flex:1, fontSize:13, color:'#8a8a8a', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{t.sideChatTitle ?? t.sideChatId.slice(0,8)}</span>
-                            <button
-                              onClick={async () => {
-                                await handleReopenSideChat(t.id);
-                                reopenRecent({ id: t.sideChatId, type: "side-conversation", title: t.sideChatTitle ?? t.sideChatId.slice(0, 8) });
-                              }}
-                              title="Reopen"
-                              style={{background:'transparent', border:'1px solid #262626', borderRadius:6, color:'#e8e8e8', cursor:'pointer', padding:'2px 6px', fontSize:11}}
-                            >Reopen</button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          );
-        })()}
-        {activeTab?.type === "trajectory" && <TrajectoryView sessionId={currentSessionId} />}
-        {activeTab?.type === "terminal" && (
-          <div style={{flex:1, minHeight:0, padding:12}}><TerminalPane terminalId={activeTab.id} /></div>
-        )}
-        {activeTab?.type === "review" && <GitPanel />}
-        {activeTab?.type === "browser" && <BrowserPane />}
+      </div>
       </div>
     </aside>
   );

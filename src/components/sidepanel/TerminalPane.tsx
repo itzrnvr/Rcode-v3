@@ -4,6 +4,14 @@
  * No separate input widget — the xterm itself handles all key handling,
  * cursor, selection, copy/paste, and renders ANSI. The shell is a real PTY
  * (conpty on Windows) via main process, so vim, htop, etc. work.
+ *
+ * The block wears the One UI clothing: a rounded surface card inset from the
+ * pane edges (.terminal-pane-wrap / .terminal-pane in index.css). xterm needs
+ * concrete colours, so the theme colours are resolved from the running
+ * stylesheet tokens through a probe element and converted to hex — the
+ * terminal follows every theme preset instead of carrying its own hardcoded
+ * palette. The 16 ANSI colours stay fixed: they are terminal data (ls, git
+ * and prompt themes emit them), not theme decoration.
  */
 
 import { useEffect, useRef } from "react";
@@ -17,6 +25,24 @@ interface TerminalPaneProps {
   terminalId: string;
 }
 
+/** Resolve a CSS colour token to hex via a probe inside the themed scope. */
+function tokenToHex(el: HTMLElement, token: string, fallback: string): string {
+  try {
+    const probe = document.createElement("span");
+    probe.style.color = `var(${token})`;
+    el.appendChild(probe);
+    const computed = getComputedStyle(probe).color;
+    probe.remove();
+    const parts = computed.match(/[\d.]+/g);
+    if (!parts || parts.length < 3) return fallback;
+    const [r, g, b] = parts.slice(0, 3).map(v => Math.max(0, Math.min(255, Math.round(parseFloat(v)))));
+    const to2 = (n: number) => n.toString(16).padStart(2, "0");
+    return `#${to2(r)}${to2(g)}${to2(b)}`;
+  } catch {
+    return fallback;
+  }
+}
+
 export function TerminalPane({ terminalId }: TerminalPaneProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<Terminal | null>(null);
@@ -26,17 +52,24 @@ export function TerminalPane({ terminalId }: TerminalPaneProps) {
     const el = containerRef.current;
     if (!el) return;
 
+    // Theme colours read from the live tokens (probe is mounted inside the
+    // themed tree, so var() resolves the active preset). Selection is the
+    // accent at low alpha, matching the app's selection treatment.
+    const accent = tokenToHex(el, "--color-accent", "#4d8dff");
+    const fg = tokenToHex(el, "--color-fg", "#e8e8e8");
+    const bg = tokenToHex(el, "--color-surface", "#202020");
     const term = new Terminal({
-      fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+      fontFamily: "var(--font-mono, ui-monospace), SFMono-Regular, Menlo, Monaco, Consolas, monospace",
       fontSize: 12,
       lineHeight: 1.2,
       cursorBlink: true,
       cursorStyle: "block",
       theme: {
-        background: "#161616",
-        foreground: "#e8e8e8",
-        cursor: "#e8e8e8",
-        selectionBackground: "#264f78",
+        background: bg,
+        foreground: fg,
+        cursor: fg,
+        cursorAccent: bg,
+        selectionBackground: `${accent}44`,
         black: "#000000",
         red: "#cd3131",
         green: "#0dbc79",
@@ -128,18 +161,12 @@ export function TerminalPane({ terminalId }: TerminalPaneProps) {
   }, [terminalId]);
 
   return (
-    <div
-      ref={containerRef}
-      style={{
-        width: "100%",
-        height: "100%",
-        minHeight: 200,
-        background: "#161616",
-        padding: 8,
-        borderRadius: 8,
-        border: "1px solid #262626",
-      }}
-      onClick={() => termRef.current?.focus()}
-    />
+    <div className="terminal-pane-wrap">
+      <div
+        ref={containerRef}
+        className="terminal-pane"
+        onClick={() => termRef.current?.focus()}
+      />
+    </div>
   );
 }
