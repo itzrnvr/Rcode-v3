@@ -2243,6 +2243,14 @@ html, body, #root {
   margin: 0 auto;
   padding: 8px 16px 16px;
   box-sizing: border-box;
+  /* The composer renders in two very different containers: the chat column
+     (hundreds of pixels wide) and the side panel (320px). A viewport media
+     query cannot tell those apart - at a 1440px window the side panel's
+     composer still got the full desktop control sizes and ran off the panel's
+     edge. The composer is its own query container, so its compact rules are
+     measured against the space it actually has to live in. */
+  container-type: inline-size;
+  container-name: rcode-composer;
 }
 /* The composer card, from the prototype's Composer: a rounded container on
    the surface fill whose hairline strengthens on focus — no ring, no glow;
@@ -3038,46 +3046,28 @@ html, body, #root {
   flex-wrap: nowrap;
   gap: 6px;
 }
-/* Composer controls on narrow screens.
-   The left group (attach, access mode, reasoning effort) and the right group
-   (model, mic, send) both compete for the same row. On a 488px phone the last
-   chevron of one control butted straight into the first of the other, so the
-   two read as a single malformed control.
-
-   Below 640px the effort control drops to its icon, matching what the access
-   mode and model pickers already do, and the model trigger gives up its
-   provider prefix before it gives up any of the model name. */
-@media (max-width: 639px) {
-  .rcode-effort-trigger-label {
-    display: none;
-  }
-  .rcode-effort-trigger,
-  .rcode-composer-model-trigger {
-    padding: 0 4px;
-  }
-  .rcode-prompt-tools {
-    gap: 4px;
-  }
-}
-@media (max-width: 479px) {
-  /* Provider is the least useful word in the composer once space is tight;
-     the model name is the one that identifies what will run. */
-  .rcode-model-trigger-provider {
-    display: none;
-  }
-  .rcode-composer-model-trigger {
-    max-width: 116px;
-  }
-}
 
 .rcode-prompt-tools {
   flex: 0 1 auto;
   flex-wrap: nowrap;
-  min-width: 0;
+  /* auto, not 0. The component's own base class carries Tailwind's min-w-0,
+     which let this group shrink below its content: the access-mode trigger
+     was pushed out of its own box and on top of the reasoning-effort trigger
+     on a 320-390px phone. min-width: auto restores the content-based floor
+     so the group's children stay inside it. Unlayered, so it beats the
+     utility. */
+  min-width: auto;
   gap: 6px;
 }
+/* Only the right group may shrink below its content. The model name inside it
+   is the one thing on this row that can be shortened - it ellipsizes - and it
+   is the one thing that must be, because it is the only elastic label here.
+   The left group holds fixed-size controls (the attach button and the
+   access-mode trigger), so letting IT shrink only pushed its content out of
+   its own box and on top of the right group. */
 .rcode-prompt-tools-right {
   margin-left: auto;
+  min-width: 0;
 }
 .rcode-composer-select {
   height: 40px;
@@ -3135,6 +3125,12 @@ html, body, #root {
 /* Access-mode trigger. Chrome-free for the same reason as the model trigger:
    the two sit side by side in the composer, and a bordered pill next to a bare
    label made one of them look like the primary control when neither is. */
+/* The wrapper never shrinks. Below 767px the trigger is icon + chevron and
+   nothing else, so it has no elastic part to give up - letting it shrink only
+   clipped the chevron and pushed the trigger out of its own box. */
+.rcode-mode-select {
+  flex: 0 0 auto;
+}
 .rcode-mode-select [data-slot="select-trigger"] {
   min-height: 40px;
   padding: 0 12px;
@@ -3213,11 +3209,8 @@ html, body, #root {
   line-height: 1;
   white-space: nowrap;
 }
-@media (max-width: 767px) {
-  .rcode-mode-trigger-label {
-    display: none;
-  }
-}
+/* The mode label's own rule lives with the composer breakpoints below, which
+   are measured against the composer's width rather than the window's. */
 
 .rcode-mode-item {
   display: flex;
@@ -3278,7 +3271,7 @@ html, body, #root {
   font-size: 10px;
 }
 
-@media (max-width: 1120px) {
+@container rcode-composer (max-width: 900px) {
   .rcode-composer-model-trigger {
     max-width: 170px;
   }
@@ -3435,6 +3428,76 @@ html, body, #root {
   color: inherit;
   font-weight: 500;
   line-height: 1;
+}
+
+/* Composer controls on narrow screens.
+   The left group (attach, access mode) and the right group (reasoning effort,
+   model, mic, send) both compete for the same row. On a 390px phone the
+   access-mode trigger and the reasoning-effort trigger overlapped by 16px,
+   because the narrow-screen padding rules sat ABOVE the base rules that set
+   the same property and lost the cascade - every control kept its 12px
+   desktop padding, the row no longer fit, and the access-mode trigger was
+   squeezed out of its own box and on top of its neighbour.
+
+   Below 640px the effort control drops to its icon, matching what the access
+   mode and model pickers already do, and the model trigger gives up its
+   provider prefix before it gives up any of the model name.
+
+   THIS BLOCK HAS TO STAY BELOW THE BASE RULES IT OVERRIDES. The base rules
+   for these controls live further down this file, so a media query here wins
+   nothing. */
+/* Composer controls adapt to the space the composer has, not to the window.
+
+   The composer renders in two very different containers: the chat column
+   (hundreds of pixels) and the side panel (320px). A viewport media query
+   cannot tell those apart - at a 1440px window the side panel's composer got
+   the full desktop control sizes and ran off the panel's right edge, while a
+   phone-width chat column needed a different set of compromises entirely.
+   The composer is its own query container, so its compact rules are measured
+   against the space it actually has to live in.
+
+   The thresholds are the widths at which each label stops fitting:
+     900px  the model trigger gives up its 260px cap.
+     560px  the access-mode label ("Full access") goes first. An icon alone
+            cannot say whether the agent can currently run commands, so it
+            keeps its label as long as the row can afford it.
+     400px  the reasoning-effort label follows.
+     340px  the model's provider prefix goes before the model name does - the
+            name is what identifies what will run.
+
+   Every threshold leaves the row fitting: the model trigger is the one
+   elastic control (it ellipsizes its name), so it absorbs whatever is left.
+
+   THIS BLOCK HAS TO STAY BELOW THE BASE RULES IT OVERRIDES. The base rules
+   for these controls live further down this file, so a query here wins
+   nothing. */
+@container rcode-composer (max-width: 560px) {
+  .rcode-mode-trigger-label {
+    display: none;
+  }
+  .rcode-effort-trigger,
+  .rcode-composer-model-trigger,
+  .rcode-mode-select [data-slot="select-trigger"] {
+    padding: 0 6px;
+  }
+}
+@container rcode-composer (max-width: 400px) {
+  .rcode-effort-trigger-label {
+    display: none;
+  }
+  .rcode-prompt-tools {
+    gap: 4px;
+  }
+}
+@container rcode-composer (max-width: 340px) {
+  /* Provider is the least useful word in the composer once space is tight;
+     the model name is the one that identifies what will run. */
+  .rcode-model-trigger-provider {
+    display: none;
+  }
+  .rcode-composer-model-trigger {
+    max-width: 116px;
+  }
 }
 .rcode-effort-popup {
   width: 168px;

@@ -35,8 +35,10 @@ interface AppContextValue {
   setHasSideChats: (v: boolean) => void;
   sidePanelCollapsed: boolean;
   setSidePanelCollapsed: (v: boolean) => void;
+  collapseSidePanelTransiently: (v: boolean) => void;
   sidebarCollapsed: boolean;
   setSidebarCollapsed: (v: boolean) => void;
+  collapseSidebarTransiently: (v: boolean) => void;
   sidePanelWidth: number;
   setSidePanelWidth: (n: number) => void;
 }
@@ -107,6 +109,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setSidebarCollapsedState(v);
     await api.setSetting("sidebarCollapsed", v ? "true" : "false");
   }, []);
+  /*
+   * Responsive collapse must not persist. The auto-collapse in App.tsx runs on
+   * every narrow window, and because it went through setSidebarCollapsed it
+   * wrote "true" to the database - so opening the app in a small window
+   * permanently collapsed the sidebar in every window, including wide ones.
+   * Only an explicit user toggle is a preference worth keeping.
+   */
+  const collapseSidebarTransiently = useCallback((v: boolean) => {
+    setSidebarCollapsedState(v);
+  }, []);
+  const collapseSidePanelTransiently = useCallback((v: boolean) => {
+    setSidePanelCollapsedState(v);
+  }, []);
   const setSidePanelWidth = useCallback(async (n: number) => {
     setSidePanelWidthState(n);
     await api.setSetting("sidePanelWidth", String(n));
@@ -136,8 +151,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setHasSideChats,
     sidePanelCollapsed,
     setSidePanelCollapsed,
+    collapseSidePanelTransiently,
     sidebarCollapsed,
     setSidebarCollapsed,
+    collapseSidebarTransiently,
     sidePanelWidth,
     setSidePanelWidth,
   };

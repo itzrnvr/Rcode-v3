@@ -457,7 +457,6 @@ export function SessionList({ collapsed, onToggleCollapse: _onToggleCollapse, wi
     sessionListVersion,
     bumpSessionList,
     sideChatVersion,
-    settings,
     setShowSettings,
   } = useApp();
   const { sessions, loading, deleteSession } = useSessions(sessionListVersion);
@@ -721,11 +720,10 @@ export function SessionList({ collapsed, onToggleCollapse: _onToggleCollapse, wi
         )}
       </div>
 
-      {/* There is no account here, so the footer is not a profile: a Settings
-          entry and the local model server state, on one row. Settings takes
-          the room it needs; the server status rides on the right and truncates
-          first, because the status is reference information and the entry is
-          an action. */}
+      {/* There is no account here, so the footer is not a profile. The local
+          model server state that used to ride on the right of this row is
+          gone: it duplicated what the composer's provider already shows, and
+          the provider is the thing that actually changes under the user. */}
       <div className="flex items-center gap-2 border-t border-[var(--color-border)] p-3">
         <button
           type="button"
@@ -737,16 +735,6 @@ export function SessionList({ collapsed, onToggleCollapse: _onToggleCollapse, wi
             Settings
           </span>
         </button>
-        <div
-          title={`Local model server · ${settings.providerName}`}
-          className="flex min-w-0 shrink items-center gap-1.5 text-ui-xs text-[var(--color-foreground-subtlest)]"
-        >
-          <span
-            aria-hidden
-            className="size-1.5 shrink-0 rounded-full bg-[var(--color-success)]"
-          />
-          <span className="min-w-0 truncate">{settings.providerName}</span>
-        </div>
       </div>
     </div>
   );

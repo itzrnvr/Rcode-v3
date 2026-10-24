@@ -9,6 +9,25 @@ import { test, expect, type Page, type Locator } from "@playwright/test";
  * real geometry.
  */
 
+/**
+ * The dev backend's IPC endpoint.
+ *
+ * The renderer reaches these channels through window.electron, which a plain
+ * browser page does not have, so a test that needs backend state the UI
+ * cannot click its way to talks to the API directly.
+ */
+const API_BASE = "http://127.0.0.1:5174/api/ipc/";
+
+async function api(channel: string, args: unknown[]) {
+  const res = await fetch(API_BASE + channel, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ args }),
+  });
+  const json = (await res.json()) as { ok: boolean; result: unknown };
+  return json.result;
+}
+
 async function box(page: Page, selector: string) {
   const el = page.locator(selector).first();
   await expect(el).toBeVisible();
@@ -197,6 +216,117 @@ test("composer controls do not overlap each other", async ({ page }) => {
         overlaps(boxes[i]!, boxes[j]!),
         `${selectors[i]} overlaps ${selectors[j]} at ${page.viewportSize()!.width}px`,
       ).toBe(false);
+    }
+  }
+});
+
+/** The sidebar's open/closed state persists across runs, so a test that has to
+ *  read a session row has to establish it first. */
+async function ensureSidebarOpen(page: Page) {
+  const panel = page.locator(".panel-sessions");
+  if (await panel.isVisible().catch(() => false)) return;
+  await toggleTo(
+    page,
+    page.getByRole("button", { name: "Toggle sidebar" }),
+    () => panel.isVisible()
+  );
+  await expect(panel).toBeVisible();
+}
+
+/**
+ * The composer in the side panel.
+ *
+ * The composer is the same component in the chat column and in the side
+ * panel, but the panel is 320px wide whatever the window is. Viewport
+ * breakpoints cannot tell those apart, so the panel's composer used to get
+ * the full desktop control sizes and run off the panel's right edge - the
+ * model trigger ended up 6px outside a 1440px window.
+ *
+ * The composer now adapts to its own container instead. This is the desktop
+ * case on purpose: the bug needs a wide window and a narrow panel, which is
+ * exactly the shape a user gets at 1440px.
+ */
+test("the composer in the side panel fits inside the panel", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "needs a wide window and a narrow panel");
+
+  // A side chat is forked from the CURRENT session, so one has to be open.
+  // The title comes from the API because the sidebar row's accessible name
+  // also carries its timestamp.
+  const sessions = (await api("session:listMain", [])) as { id: string; title: string }[];
+  const title = sessions.find(s => s.title)?.title;
+  expect(title, "the dev database should hold at least one session").toBeTruthy();
+  await ensureSidebarOpen(page);
+  const row = page.locator(".panel-sessions button").filter({ hasText: title!.slice(0, 24) }).first();
+  await row.click();
+  // The selected row is the one carrying the selected fill.
+  await expect(
+    page.locator(".panel-sessions .session-row").filter({ hasText: title!.slice(0, 24) }).first(),
+  ).toHaveClass(/color-selected/);
+
+  await ensureSidePanelClosed(page);
+  await toggleTo(
+    page,
+    page.getByRole("button", { name: "Toggle side panel" }),
+    () => page.locator(".panel-side").count().then(count => count > 0)
+  );
+  await page.getByRole("button", { name: "New tab" }).click();
+  // The picker entries are menu items, not buttons.
+  const sideConversation = page.getByRole("menuitem", { name: "Side conversation" });
+  await expect(sideConversation).toBeVisible();
+  await sideConversation.click();
+
+  const pane = page.locator(".panel-side [role='tabpanel']");
+  await expect(pane).toBeVisible();
+
+  // The side chat this test just forked has to go away again, or the dev
+  // database fills up with one dead side chat per run.
+  const sideChatId = (await pane.getAttribute("id"))?.split("-pane-").pop();
+  try {
+    // Measured in one pass through the DOM: the panel is mid-animation when
+    // the side chat mounts, so a locator's boundingBox() can land on a frame
+    // where the panel has no box yet.
+    const measured = await page.evaluate(() => {
+      const panel = document.querySelector(".panel-side");
+      if (!panel) return null;
+      const pr = panel.getBoundingClientRect();
+      const selectors = [
+        ".panel-side .rcode-mode-select [data-slot='select-trigger']",
+        ".panel-side .rcode-effort-trigger",
+        ".panel-side .rcode-composer-model-trigger",
+      ];
+      const boxes = selectors.flatMap(s => {
+        const el = document.querySelector(s);
+        if (!el) return [];
+        const r = el.getBoundingClientRect();
+        if (r.width === 0) return [];
+        return [{ sel: s, x: r.x, right: r.right, width: r.width }];
+      });
+      return { panel: { x: pr.x, right: pr.right, width: pr.width }, boxes };
+    });
+
+    expect(measured, "the side panel should be on screen").not.toBeNull();
+    const { panel, boxes } = measured!;
+    expect(boxes.length, "the panel composer should have its controls").toBeGreaterThanOrEqual(2);
+
+    for (const b of boxes) {
+      expect(b.x, `${b.sel} starts left of the panel`).toBeGreaterThanOrEqual(panel.x - 1);
+      expect(
+        b.right,
+        `${b.sel} runs past the panel's right edge`,
+      ).toBeLessThanOrEqual(panel.right + 1);
+    }
+    for (let i = 0; i < boxes.length; i++) {
+      for (let j = i + 1; j < boxes.length; j++) {
+        expect(
+          boxes[i].x < boxes[j].right && boxes[j].x < boxes[i].right,
+          `${boxes[i].sel} overlaps ${boxes[j].sel}`,
+        ).toBe(false);
+      }
+    }
+  } finally {
+    if (sideChatId) {
+      await api("sidechat:close", [sideChatId]).catch(() => undefined);
+      await api("session:delete", [sideChatId]).catch(() => undefined);
     }
   }
 });

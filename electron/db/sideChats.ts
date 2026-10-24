@@ -111,12 +111,22 @@ export function getClosedSideChats(parentSessionId: string): SideChatTab[] {
   return rows.map(tabRowToSideChatTab);
 }
 
-export function closeSideChatTab(tabId: string): void {
-  getDb().prepare("UPDATE side_chat_tabs SET is_closed = 1 WHERE id = ?").run(tabId);
+/**
+ * Close and reopen a side chat.
+ *
+ * The id these take is the SIDE CHAT's session id, not the side_chat_tabs row
+ * id - every caller passes the side chat id (the panel's tab id is the
+ * sideChatId, and promoteSideChat below already matches on side_chat_id).
+ * The updates used to match on the row id instead, so they silently matched
+ * nothing: closing a side chat from the panel removed its pill for the rest
+ * of the session and the pill came straight back on the next refresh.
+ */
+export function closeSideChatTab(sideChatId: string): void {
+  getDb().prepare("UPDATE side_chat_tabs SET is_closed = 1 WHERE side_chat_id = ?").run(sideChatId);
 }
 
-export function reopenSideChatTab(tabId: string): void {
-  getDb().prepare("UPDATE side_chat_tabs SET is_closed = 0 WHERE id = ?").run(tabId);
+export function reopenSideChatTab(sideChatId: string): void {
+  getDb().prepare("UPDATE side_chat_tabs SET is_closed = 0 WHERE side_chat_id = ?").run(sideChatId);
 }
 
 export function promoteSideChat(sideChatId: string): void {

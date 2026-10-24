@@ -57,7 +57,7 @@ class ErrorBoundary extends Component<
 }
 
 function AppInner() {
-  const { settings, showSettings, setShowSettings, bumpSessionList, sidePanelCollapsed, setSidePanelCollapsed, sidePanelWidth, setSidePanelWidth, sidebarCollapsed, setSidebarCollapsed } = useApp();
+  const { settings, showSettings, setShowSettings, bumpSessionList, sidePanelCollapsed, setSidePanelCollapsed, sidePanelWidth, setSidePanelWidth, sidebarCollapsed, setSidebarCollapsed, collapseSidePanelTransiently, collapseSidebarTransiently } = useApp();
   useTheme(settings.theme);
 
   const [route, setRoute] = useState<"chat" | "settings">("chat");
@@ -78,9 +78,9 @@ function AppInner() {
     // Auto-collapse on narrow screens, but never overrule a user toggle.
     // Once the user explicitly opens a panel, respect that choice.
     if (userOverrodePanels) return;
-    if (viewportWidth < 920 && !sidePanelCollapsed) void setSidePanelCollapsed(true);
-    if (viewportWidth < 860 && !sidebarCollapsed) void setSidebarCollapsed(true);
-  }, [viewportWidth, sidePanelCollapsed, sidebarCollapsed, setSidePanelCollapsed, setSidebarCollapsed, userOverrodePanels]);
+    if (viewportWidth < 920 && !sidePanelCollapsed) collapseSidePanelTransiently(true);
+    if (viewportWidth < 860 && !sidebarCollapsed) collapseSidebarTransiently(true);
+  }, [viewportWidth, sidePanelCollapsed, sidebarCollapsed, collapseSidePanelTransiently, collapseSidebarTransiently, userOverrodePanels]);
   const openSettingsAt = (cat?: string) => {
     setSettingsCategory(cat);
     setShowSettings(true);
