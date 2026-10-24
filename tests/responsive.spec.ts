@@ -104,51 +104,78 @@ test("left sidebar collapses and expands", async ({ page }, testInfo) => {
   // with data-collapsed on the panel itself.
   const collapsed = page.locator('.panel-sessions[data-collapsed="true"]');
 
-  // Collapse state persists across runs; establish the expanded start the
-  // test's first click assumes.
-  if (await collapsed.count()) {
+  // The toggle writes to the shared dev database, and that write races the
+  // page's teardown - so a test that ends on a collapse can leave the user's
+  // app with a collapsed sidebar at any window size. The state is restored
+  // to whatever it was before the test ran.
+  const before = (await api("settings:getOne", ["sidebarCollapsed"])) as string | null;
+  try {
+    // Collapse state persists across runs; establish the expanded start the
+    // test's first click assumes.
+    if (await collapsed.count()) {
+      await toggleTo(
+        page,
+        page.getByRole("button", { name: "Toggle sidebar" }),
+        () => collapsed.count().then(count => count === 0)
+      );
+    }
+
+    const toggle = page.getByRole("button", { name: "Toggle sidebar" });
+    await toggleTo(
+      page,
+      toggle,
+      () => collapsed.count().then(count => count > 0)
+    );
+    await expect(collapsed).toHaveCount(1);
+
+    if (testInfo.project.name === "mobile") {
+      const drawer = page.locator(".panel-sessions");
+      await expect(drawer).toBeAttached();
+      // The drawer keeps its width off-canvas, so its right edge is what has
+      // to clear the viewport, not its width.
+      await expect
+        .poll(async () => drawer.evaluate(el => el.getBoundingClientRect().right), { timeout: 2_000 })
+        .toBeLessThanOrEqual(1);
+    } else {
+      // The width animates to 0 and the panel then flips to visibility:hidden.
+      // Read the rect through evaluate() rather than boundingBox(): Playwright
+      // reports null for a hidden element, and the visibility flip lands
+      // before the width poll would otherwise settle.
+      await expect
+        .poll(async () => collapsed.evaluate(el => el.getBoundingClientRect().width), { timeout: 2_000 })
+        .toBeLessThanOrEqual(1);
+      await expect(collapsed).toBeHidden();
+    }
+
     await toggleTo(
       page,
       page.getByRole("button", { name: "Toggle sidebar" }),
-      () => collapsed.count().then(count => count === 0)
+      () => collapsed.count().then(count => count === 0),
+      true
     );
+    await expect(collapsed).toHaveCount(0);
+  } finally {
+    await api("settings:set", ["sidebarCollapsed", before ?? "false"]);
   }
-
-  const toggle = page.getByRole("button", { name: "Toggle sidebar" });
-  await toggleTo(
-    page,
-    toggle,
-    () => collapsed.count().then(count => count > 0)
-  );
-  await expect(collapsed).toHaveCount(1);
-
-  if (testInfo.project.name === "mobile") {
-    const drawer = page.locator(".panel-sessions");
-    await expect(drawer).toBeAttached();
-    // The drawer keeps its width off-canvas, so its right edge is what has to
-    // clear the viewport, not its width.
-    await expect
-      .poll(async () => drawer.evaluate(el => el.getBoundingClientRect().right), { timeout: 2_000 })
-      .toBeLessThanOrEqual(1);
-  } else {
-    // The width animates to 0 and the panel then flips to visibility:hidden.
-    // Read the rect through evaluate() rather than boundingBox(): Playwright
-    // reports null for a hidden element, and the visibility flip lands before
-    // the width poll would otherwise settle.
-    await expect
-      .poll(async () => collapsed.evaluate(el => el.getBoundingClientRect().width), { timeout: 2_000 })
-      .toBeLessThanOrEqual(1);
-    await expect(collapsed).toBeHidden();
-  }
-
-  await toggleTo(
-    page,
-    page.getByRole("button", { name: "Toggle sidebar" }),
-    () => collapsed.count().then(count => count === 0),
-    true
-  );
-  await expect(collapsed).toHaveCount(0);
 });
+
+/**
+ * Run a test body and put a persisted setting back the way it was.
+ *
+ * The panel toggles write to the shared dev database, and the write from a
+ * test's last action races that page's teardown - so a test that ends on a
+ * collapse can leave the user's app with a collapsed panel at any window
+ * size. Restoring the value here keeps the suite from reaching out of its
+ * own sandbox.
+ */
+async function withRestoredSetting<T>(key: string, body: () => Promise<T>): Promise<T> {
+  const before = (await api("settings:getOne", [key])) as string | null;
+  try {
+    return await body();
+  } finally {
+    await api("settings:set", [key, before ?? "false"]);
+  }
+}
 
 /** Panel toggles persist to the shared dev database, and the write from a
  *  previous test's last action races that page's teardown — so a test cannot
@@ -165,34 +192,36 @@ async function ensureSidePanelClosed(page: Page) {
 }
 
 test("right side panel toggles open, closed and open again", async ({ page }) => {
-  await ensureSidePanelClosed(page);
-  await expect(page.locator(".panel-side")).toHaveCount(0);
+  await withRestoredSetting("sidePanelCollapsed", async () => {
+    await ensureSidePanelClosed(page);
+    await expect(page.locator(".panel-side")).toHaveCount(0);
 
-  const expand = page.getByRole("button", { name: "Toggle side panel" });
-  const panelClosed = () => page.locator(".panel-side").count().then(count => count === 0);
-  const panelOpen = () => page.locator(".panel-side").count().then(count => count > 0);
-  await toggleTo(page, expand, panelOpen);
-  const panel = page.locator(".panel-side");
-  await expect(panel).toBeVisible();
+    const expand = page.getByRole("button", { name: "Toggle side panel" });
+    const panelClosed = () => page.locator(".panel-side").count().then(count => count === 0);
+    const panelOpen = () => page.locator(".panel-side").count().then(count => count > 0);
+    await toggleTo(page, expand, panelOpen);
+    const panel = page.locator(".panel-side");
+    await expect(panel).toBeVisible();
 
-  // Must sit inside the viewport, not hang off the right edge.
-  const b = (await panel.boundingBox())!;
-  const viewport = page.viewportSize()!;
-  expect(b.x + b.width).toBeLessThanOrEqual(viewport.width + 1);
-  expect(b.x).toBeGreaterThanOrEqual(-1);
+    // Must sit inside the viewport, not hang off the right edge.
+    const b = (await panel.boundingBox())!;
+    const viewport = page.viewportSize()!;
+    expect(b.x + b.width).toBeLessThanOrEqual(viewport.width + 1);
+    expect(b.x).toBeGreaterThanOrEqual(-1);
 
-  const close = page.getByRole("separator", { name: "Resize side panel" });
-  if (await close.isVisible().catch(() => false)) await close.click();
-  else await expand.click();
-  // Same swallowed-click tolerance for whichever close control fired, without
-  // clicking again if the first one already closed the panel.
-  await toggleTo(page, expand, panelClosed, true);
-  await expect(page.locator(".panel-side")).toHaveCount(0);
+    const close = page.getByRole("separator", { name: "Resize side panel" });
+    if (await close.isVisible().catch(() => false)) await close.click();
+    else await expand.click();
+    // Same swallowed-click tolerance for whichever close control fired,
+    // without clicking again if the first one already closed the panel.
+    await toggleTo(page, expand, panelClosed, true);
+    await expect(page.locator(".panel-side")).toHaveCount(0);
 
-  // Re-opening must still work — a toggle that only opens once is the bug this
-  // suite exists to catch.
-  await toggleTo(page, expand, panelOpen);
-  await expect(page.locator(".panel-side")).toBeVisible();
+    // Re-opening must still work — a toggle that only opens once is the bug
+    // this suite exists to catch.
+    await toggleTo(page, expand, panelOpen);
+    await expect(page.locator(".panel-side")).toBeVisible();
+  });
 });
 
 test("composer controls do not overlap each other", async ({ page }) => {
@@ -279,8 +308,11 @@ test("the composer in the side panel fits inside the panel", async ({ page }, te
   await expect(pane).toBeVisible();
 
   // The side chat this test just forked has to go away again, or the dev
-  // database fills up with one dead side chat per run.
+  // database fills up with one dead side chat per run. The side panel's
+  // collapsed state goes back too: the toggle writes to the shared dev
+  // database, and that write races the page's teardown.
   const sideChatId = (await pane.getAttribute("id"))?.split("-pane-").pop();
+  const panelBefore = (await api("settings:getOne", ["sidePanelCollapsed"])) as string | null;
   try {
     // Measured in one pass through the DOM: the panel is mid-animation when
     // the side chat mounts, so a locator's boundingBox() can land on a frame
@@ -328,6 +360,7 @@ test("the composer in the side panel fits inside the panel", async ({ page }, te
       await api("sidechat:close", [sideChatId]).catch(() => undefined);
       await api("session:delete", [sideChatId]).catch(() => undefined);
     }
+    await api("settings:set", ["sidePanelCollapsed", panelBefore ?? "false"]);
   }
 });
 
