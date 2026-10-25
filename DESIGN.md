@@ -384,6 +384,35 @@ same fill and keeps its own state marker.
 - A user message is a bubble with a trimmed corner; the assistant's answer
   is not.
 
+### Streaming a turn
+
+The order a turn arrives in is part of the design, not an implementation
+detail.
+
+- **A tool result ends an assistant message.** Within one message there is
+  at most one reasoning block and at most one text block, and the reasoning
+  comes first. So a turn reads: reasoning, answer, tool, reasoning, answer.
+- **The reasoning of a message always appears above that message's tool
+  call**, and the tool result appears inside the trace, with the answer
+  after it.
+- A provider may fragment one message across reasoning and text deltas in
+  any order — one delivered `reasoning, "F", reasoning, "ORK-OK"`. The
+  canonical blocks repair it, and the repair reaches the live view, not
+  just the saved transcript: the reader must never watch the answer read
+  "ORK-OK" for the length of a turn.
+- **A fold the reader did not ask for is instant.** The trace closes itself
+  when the answer starts, and a height animation there drags the answer
+  around for the length of the animation. The folds the reader triggers stay
+  animated.
+- **The transcript holds still while a turn streams.** Pinning the scroll
+  is instant, not a spring; the streaming message and the saved one swap in
+  a single commit, so the answer never blinks out at the end of a turn; and
+  the placeholder and the live turn are the same slot, not two siblings
+  that swap places.
+- A message sent while a turn is running waits its turn. It is shown above
+  the composer rather than in the transcript, because putting it in the
+  transcript would push the scroll position every time one was queued.
+
 ## Elevation
 
 Layer with background contrast and borders first; reach for a shadow last.
