@@ -33,7 +33,11 @@
   --color-popover: var(--color-surface);
   --color-popover-foreground: var(--color-fg);
   --color-primary: var(--color-accent);
-  --color-primary-foreground: var(--color-bg);
+  /* The label on a primary fill comes from the shadcn alias, not from the
+     background colour: the monochrome themes want a near-black label on a
+     white fill, One UI light wants white on blue, and only the alias can
+     say which. */
+  --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--color-surface);
   --color-secondary-foreground: var(--color-fg);
   --color-muted: var(--color-surface);
@@ -41,14 +45,14 @@
   --color-accent: var(--color-surface);
   --color-accent-foreground: var(--color-fg);
   --color-destructive: var(--color-danger);
-  --color-destructive-foreground: var(--color-bg);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--color-border);
   --color-input: var(--color-border);
   --color-ring: var(--color-accent);
   --color-sidebar: var(--color-sidebar);
   --color-sidebar-foreground: var(--color-fg);
   --color-sidebar-primary: var(--color-accent);
-  --color-sidebar-primary-foreground: var(--color-bg);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
   --color-sidebar-accent: var(--color-surface);
   --color-sidebar-accent-foreground: var(--color-fg);
   --color-sidebar-border: var(--color-border);
@@ -135,49 +139,66 @@
   --color-success: #46bf72;
   --color-warning: #ff8a30;
   --color-danger: #ff5c5c;
-  --color-accent-soft: rgba(255, 255, 255, 0.1);
-  --color-accent-muted: rgba(255, 255, 255, 0.05);
-  --color-danger-soft: rgba(255, 92, 92, 0.12);
-  --color-danger-muted: rgba(255, 92, 92, 0.06);
+  --color-accent-soft: color-mix(in srgb, var(--color-accent) 12%, transparent);
+  --color-accent-muted: color-mix(in srgb, var(--color-accent) 6%, transparent);
+  --color-success-soft: color-mix(in srgb, var(--color-success) 14%, transparent);
+  --color-warning-soft: color-mix(in srgb, var(--color-warning) 14%, transparent);
+  --color-danger-soft: color-mix(in srgb, var(--color-danger) 12%, transparent);
+  --color-danger-muted: color-mix(in srgb, var(--color-danger) 6%, transparent);
 
   /* Surfaces. Four solid steps; everything else is alpha over these. */
   --color-bg: #161616;
   --color-surface: #202020;
   --color-menu: #2b2b2b;
   --color-sidebar: #161616;
-  --color-card: #2b2b2b;
-  --color-popover: #2b2b2b;
-  --color-input: #2b2b2b;
+  --color-card: var(--color-surface);
+  --color-popover: var(--color-menu);
+  --color-input: var(--color-surface);
 
   /* Hover and active. Alpha over whatever sits behind them, never fixed greys,
      so a hover inside a card and a hover inside a panel read the same. */
-  --color-hover: rgba(255, 255, 255, 0.05);
-  --color-active: rgba(255, 255, 255, 0.1);
-  --color-selected: rgba(255, 255, 255, 0.1);
+  --color-hover: color-mix(in srgb, var(--color-fg) 5%, transparent);
+  --color-active: color-mix(in srgb, var(--color-fg) 10%, transparent);
+  --color-selected: color-mix(in srgb, var(--color-fg) 10%, transparent);
   --color-menu-hover: #363636;
 
   /* Text: Tailwind neutral-300, then two alpha steps down. */
   --color-fg: #d4d4d4;
-  --color-foreground-subtle: color-mix(in srgb, var(--color-fg) 70%, transparent);
+  --color-muted: color-mix(in srgb, var(--color-fg) 70%, transparent);
+  --color-foreground-subtle: var(--color-muted);
   --color-foreground-subtlest: color-mix(in srgb, var(--color-fg) 60%, transparent);
 
   /* Borders. One alpha ramp. A focused input takes the brand (white) - the
      same move ZCode makes, and the reason its focus state is unmistakable
      without a coloured ring competing with the content. */
-  --color-border: rgba(255, 255, 255, 0.1);
-  --color-border-hover: rgba(255, 255, 255, 0.15);
-  --color-card-border: rgba(255, 255, 255, 0.1);
-  --color-popover-border: rgba(255, 255, 255, 0.1);
-  --color-input-border: rgba(255, 255, 255, 0.1);
-  --color-input-border-hover: rgba(255, 255, 255, 0.15);
-  --color-input-border-focused: #ffffff;
+  --color-border: color-mix(in srgb, var(--color-fg) 10%, transparent);
+  --color-border-hover: color-mix(in srgb, var(--color-fg) 15%, transparent);
+  --color-card-border: var(--color-border);
+  --color-popover-border: var(--color-border);
+  --color-input-border: color-mix(in srgb, var(--color-fg) 10%, transparent);
+  --color-input-border-hover: color-mix(in srgb, var(--color-fg) 15%, transparent);
+  --color-input-border-focused: var(--color-accent);
 
-  --color-tab: #202020;
-  --color-tab-active: #161616;
+  --color-tab: var(--color-surface);
+  --color-tab-active: var(--color-bg);
 
-  --color-muted: var(--color-foreground-subtle);
   --color-bg-secondary: var(--color-surface);
   --color-bg-tertiary: var(--color-surface);
+
+  /* Overlay scrim, and the code and diff palettes. The diff colours are
+     their own tokens, not the success and danger colours: a diff is data,
+     and a green that means "added" must not be the green that means
+     "healthy" on a badge. */
+  --color-scrim: rgb(0 0 0 / 0.6);
+  --color-code-keyword: #c084fc;
+  --color-code-type: var(--color-accent);
+  --color-code-comment: var(--color-foreground-subtlest);
+  --color-code-string: var(--color-success);
+  --color-code-number: var(--color-warning);
+  --color-diff-added: #17b88b;
+  --color-diff-removed: #dc2626;
+  --color-diff-added-soft: color-mix(in srgb, var(--color-diff-added) 18%, transparent);
+  --color-diff-removed-soft: color-mix(in srgb, var(--color-diff-removed) 18%, transparent);
 
   /* Sidebar surface aliases read by the prebuilt sidebar-* utilities. */
   --sidebar: var(--color-sidebar);
@@ -201,19 +222,23 @@
 
   /* Interface font size. Per DESIGN.md this is the only knob that scales UI
      text; root html font-size must stay fixed so radii, spacing and icon
-     sizes do not scale with it. ZCode's base is 14px at scale 1.0. */
+     sizes do not scale with it. The base step is a token, not a literal, so
+     a theme can move the whole scale - One UI's body step is 15px against
+     ZCode's 14px - while the settings slider still multiplies through it. */
   --font-scale: 1;
-  --ui-font-size: calc(14px * var(--font-scale));
+  --ui-font-base: 14px;
+  --ui-font-size: calc(var(--ui-font-base) * var(--font-scale));
 
   /* Radius: ZCode defines none of its own and uses Tailwind's scale, with
      controls at rounded-md and larger containers at rounded-lg. Rcode had a
      custom 10px base that made every control read one step heavier than the
-     reference. */
-  --radius-sm: 4px;
-  --radius-md: 6px;
+     reference. The ladder is derived from --radius, so the radius slider
+     moves all four steps together instead of leaving three of them behind. */
   --radius: 8px;
-  --radius-lg: 8px;
-  --radius-xl: 12px;
+  --radius-sm: max(2px, calc(var(--radius) - 4px));
+  --radius-md: max(2px, calc(var(--radius) - 2px));
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
   --radius-pill: 999px;
 
   /* Motion: ZCode's own vocabulary, from styles.css .wf-motion. */
@@ -230,81 +255,21 @@
 }
 
 /*
- * Base resets live in @layer base. In Tailwind v4, unlayered author CSS beats
- * every utility regardless of specificity, so an unlayered universal margin
- * reset silently disables px-*/py-*/m-*/gap-* across the whole app.
+ * Base resets live in the single @layer base block further down this file.
+ * In Tailwind v4, unlayered author CSS beats every utility regardless of
+ * specificity, so an unlayered universal margin reset silently disables the
+ * padding and gap utilities across the whole app.
+ *
+ * This block used to live here and was dead: the comment above it listed the
+ * utility names with a slash between them, and that sequence closed the CSS
+ * comment early, so the parser read the remainder as one invalid rule and
+ * discarded everything after it - the focus indicator, the page sizing and
+ * the input focus border with it. The rules are now in the live base layer,
+ * where they belong and where a component can still opt out of them.
  */
-@layer base {
 
-  /* Browser-owned surfaces themed from the palette: selection, caret and
-   scrollbars otherwise ship with defaults that belong to no design system. */
-html, body, #root {
-    height: 100%;
-    overflow: hidden;
-  }
-
-  /*
-   * Focus indicator.
-   *
-   * This lives in @layer base on purpose. It used to be unlayered author CSS,
-   * which in Tailwind v4 beats every utility regardless of specificity - so no
-   * component could opt out of it. It also carried `border-radius: 4px`, which
-   * is both unnecessary (an outline already follows the element's own radius)
-   * and destructive: it overrode rounded-none on the input inside an
-   * InputGroup, drawing a second rounded rectangle on every focus. One focused
-   * control looked like two nested squares.
-   */
-  :focus-visible {
-    outline: 2px solid color-mix(in srgb, var(--color-accent) 60%, transparent);
-    outline-offset: 2px;
-  }
-
-  /*
-   * Form controls opt out and own their focus instead. Leaving them in meant
-   * every focused input drew both this outline and the component's own ring -
-   * two indicators for one state. Each control here has a deliberate focus
-   * treatment: the prebuilt Input draws border-ring + ring-3, and the rule
-   * below covers the plain inputs in the legacy settings markup that never had
-   * one. InputGroupInput is borderless on purpose; its group draws the ring.
-   */
-  input:focus-visible,
-  textarea:focus-visible,
-  select:focus-visible {
-    outline: none;
-  }
-
-  input:focus,
-  textarea:focus {
-    border-color: var(--color-input-border-focused);
-  }
-}
-
-/* Chat content must be selectable for copy */
-
-/* --- Selection --- */
-::selection {
-  background: color-mix(in srgb, var(--color-accent) 30%, transparent);
-  color: var(--color-fg);
-}
-
-/* --- Focus ring ---
-   Moved into @layer base above. It stayed here as unlayered author CSS, where
-   it outranked every utility and forced border-radius: 4px onto elements that
-   had opted out of it. */
-
-/* --- Scrollbar --- */
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--color-fg) 8%, transparent);
-  border-radius: var(--radius-pill);
-  transition: background var(--duration-fast) var(--ease-out);
-}
-::-webkit-scrollbar-thumb:hover {
-  background: color-mix(in srgb, var(--color-fg) 16%, transparent);
-}
-
-/* Sidebar fade mask (Gemini/Unsloth style) */
+/* Chat content must be selectable for copy. The selection colours live in
+   the base layer with the rest of the browser-owned surfaces. */
 
 /* --- Animations --- */
 @keyframes fadeIn {
@@ -755,7 +720,7 @@ html, body, #root {
   margin-right: 6px;
   padding: 0;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: inherit;
   opacity: 0.55;
@@ -771,7 +736,7 @@ html, body, #root {
   margin-right: 8px;
   padding: 3px 10px;
   border: 1px solid var(--color-border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--color-fg);
   font: inherit;
@@ -952,7 +917,7 @@ html, body, #root {
   position: fixed;
   inset: 0;
   z-index: 100;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--color-scrim);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
@@ -1038,8 +1003,10 @@ html, body, #root {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: #fff;
-  transition: transform 0.2s;
+  /* The knob sits ON the accent fill, so it takes the accent's
+     foreground colour - white on a blue accent, near-black on a white one. */
+  background: var(--primary-foreground);
+  transition: transform var(--duration-fast) var(--ease-out);
 }
 
 .toggle.on .toggle-knob { transform: translateX(18px); }
@@ -1122,7 +1089,7 @@ html, body, #root {
   position: fixed;
   inset: 0;
   z-index: 150;
-  background: rgba(0, 0, 0, 0.6);
+  background: var(--color-scrim);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
   animation: radixOverlayShow 160ms ease-out;
@@ -1566,7 +1533,6 @@ html, body, #root {
   font-size: 11px;
   font-weight: 500;
   color: var(--color-foreground-subtle);
-  box-shadow: 0 1px 2px rgba(0,0,0,0.08);
 }
 
 /* --- Polished range sliders (Theme: font size, radius, contrast) --- */
@@ -1575,11 +1541,11 @@ html, body, #root {
   appearance: none;
   flex: 1;
   height: 4px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: linear-gradient(to right, var(--color-fg) 0%, var(--color-fg) var(--range-pct, 50%), var(--color-border) var(--range-pct, 50%), var(--color-border) 100%);
   outline: none;
   cursor: pointer;
-  transition: opacity 150ms;
+  transition: opacity var(--duration-fast) var(--ease-out);
   min-width: 140px;
 }
 .settings-row input[type="range"]::-webkit-slider-thumb {
@@ -1588,35 +1554,35 @@ html, body, #root {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--primary-foreground);
   border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
-  box-shadow: 0 1px 4px rgba(0,0,0,0.35), 0 0 0 1px rgba(0,0,0,0.08);
+  box-shadow: 0 1px 4px var(--color-shadow), 0 0 0 1px var(--color-shadow);
   cursor: pointer;
-  transition: transform 120ms, box-shadow 120ms;
+  transition: transform var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
 }
 .settings-row input[type="range"]::-moz-range-thumb {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--primary-foreground);
   border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
-  box-shadow: 0 1px 4px rgba(0,0,0,0.35);
+  box-shadow: 0 1px 4px var(--color-shadow);
   cursor: pointer;
 }
 .settings-row input[type="range"]:hover::-webkit-slider-thumb {
   transform: scale(1.08);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.45);
+  box-shadow: 0 2px 8px var(--color-shadow);
 }
 .settings-row input[type="range"]:active::-webkit-slider-thumb {
   transform: scale(0.96);
 }
 .settings-row input[type="range"]::-webkit-slider-runnable-track {
   height: 4px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 .settings-row input[type="range"]::-moz-range-track {
   height: 4px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--color-border);
 }
 .settings-row input[type="range"]:focus-visible {
@@ -1759,17 +1725,17 @@ html, body, #root {
   overflow: hidden;
   font-family: var(--font-code);
   font-size: 12px;
-  background: #1e1e1e;
+  background: var(--color-bg);
 }
 .theme-code-pane { padding: 10px 0; }
-.theme-code-old { background: #1e1e1e; border-right: 1px solid var(--color-border); }
-.theme-code-new { background: #1e1e1e; }
+.theme-code-old { background: var(--color-bg); border-right: 1px solid var(--color-border); }
+.theme-code-new { background: var(--color-bg); }
 .theme-code-line { padding: 1px 12px; display: flex; gap: 8px; }
 .theme-code-line .ln { color: var(--color-foreground-subtle); min-width: 16px; text-align: right; opacity: 0.5; }
-.theme-code-line .kw { color: #c084fc; }
-.theme-code-line .tp { color: #5DD1FF; }
-.theme-code-line.del { background: rgba(220,38,38,0.18); border-left: 2px solid #dc2626; }
-.theme-code-line.add { background: rgba(23,184,139,0.18); border-left: 2px solid #17B88B; }
+.theme-code-line .kw { color: var(--color-code-keyword); }
+.theme-code-line .tp { color: var(--color-code-type); }
+.theme-code-line.del { background: var(--color-diff-removed-soft); border-left: 2px solid var(--color-diff-removed); }
+.theme-code-line.add { background: var(--color-diff-added-soft); border-left: 2px solid var(--color-diff-added); }
 
 /* --- Titlebar sidebar toggle --- */
 .titlebar-sidebar-toggle {
@@ -1889,9 +1855,9 @@ html, body, #root {
   flex-shrink: 0;
   width: 20px;
   height: 20px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--color-danger);
-  color: #fff;
+  color: var(--color-bg);
   font-size: 11px;
   font-weight: 700;
   display: inline-flex;
@@ -1930,7 +1896,7 @@ html, body, #root {
   bottom: 24px;
   right: 24px;
   padding: 8px 14px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--color-accent);
   background: var(--color-surface);
   color: var(--color-accent);
@@ -2032,14 +1998,14 @@ html, body, #root {
   font-weight: 700;
   color: var(--color-foreground-subtle);
   background: var(--color-bg-tertiary);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 3px 8px;
 }
 .ms-modal-backdrop {
   position: fixed;
   inset: 0;
   z-index: 1500;
-  background: rgba(0,0,0,0.55);
+  background: var(--color-scrim);
   backdrop-filter: blur(3px);
   display: flex;
   align-items: center;
@@ -2220,7 +2186,7 @@ html, body, #root {
 .rcode-quick-prompts [data-slot="button"] {
   height: 40px;
   border: 1px solid var(--color-border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
   box-shadow: none;
   padding-inline: 16px;
@@ -2381,7 +2347,7 @@ html, body, #root {
   width: 44px;
   height: 44px;
   flex: 0 0 auto;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 /* The composer's ghost icon buttons at the prototype's size. The sizing is
    !important because the One UI preset's global button floor
@@ -2391,7 +2357,7 @@ html, body, #root {
   width: 40px !important;
   height: 40px !important;
   min-height: 40px !important;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 /* The One UI preset lifts the other footer controls to its 44px touch floor
    through the global button rule; the mode trigger is a Base UI select
@@ -2430,16 +2396,16 @@ html, body, #root {
 
 .traffic-group { display: flex; align-items: center; margin-left: 10px; margin-right: -8px; }
 .traffic-light { width: 46px; height: 32px; border: none; background: transparent; border-radius: 0; cursor: pointer; position: relative; padding: 0; }
-.traffic-light:hover { background: #2a2a2a; }
-.traffic-light::before, .traffic-light::after { content: ""; position: absolute; inset: 0; margin: auto; background: #d8d8d8; }
+.traffic-light:hover { background: var(--color-hover); }
+.traffic-light::before, .traffic-light::after { content: ""; position: absolute; inset: 0; margin: auto; background: var(--color-fg); }
 .traffic-min::before { width: 12px; height: 1.6px; }
 .traffic-min::after { display: none; }
-.traffic-max::before { width: 11px; height: 11px; background: transparent; border: 1.6px solid #d8d8d8; border-radius: 2.5px; }
+.traffic-max::before { width: 11px; height: 11px; background: transparent; border: 1.6px solid var(--color-fg); border-radius: 2.5px; }
 .traffic-max::after { display: none; }
 .traffic-close::before { width: 13px; height: 1.6px; transform: rotate(45deg); }
 .traffic-close::after { width: 13px; height: 1.6px; transform: rotate(-45deg); }
-.traffic-close:hover { background: #e81123; }
-.traffic-close:hover::before, .traffic-close:hover::after { background: #fff; }
+.traffic-close:hover { background: var(--color-danger); }
+.traffic-close:hover::before, .traffic-close:hover::after { background: var(--color-bg); }
 
 @keyframes sp-pop { from { opacity: 0; transform: translateY(-4px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
 
@@ -2458,7 +2424,7 @@ html, body, #root {
   align-items: center;
   gap: 6px;
   padding: 4px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   color: var(--color-foreground-subtle);
@@ -2562,7 +2528,7 @@ html, body, #root {
 *::-webkit-scrollbar-track { background: transparent; }
 *::-webkit-scrollbar-thumb {
   background: color-mix(in srgb, var(--color-fg) 18%, transparent);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 2px solid transparent;
   background-clip: padding-box;
 }
@@ -2667,7 +2633,68 @@ html, body, #root {
     --border: var(--color-border);
     --input: var(--color-input-border);
     --ring: var(--color-accent);
-    --radius: 10px;
+    /* The radius ladder is NOT set here. Each theme owns its own steps, and
+       they are not the same steps: One UI runs 8 / 12 / 16 / 24, ZCode runs
+       4 / 6 / 8 / 12. A single value here would be a third ladder that
+       belonged to neither. */
+  }
+  /*
+   * The app is an internal-scroll layout: the document itself never scrolls,
+   * the panes inside it do. Without this the chat column and the side panel
+   * have no height to divide, and the shell falls back to the document's
+   * content height. The gallery and the One UI prototype override it back to
+   * an ordinary scrolling document in their own stylesheets.
+   */
+  html,
+  body,
+  #root {
+    height: 100%;
+    overflow: hidden;
+  }
+  /*
+   * Focus indicator.
+   *
+   * In @layer base on purpose. As unlayered author CSS it beat every utility
+   * regardless of specificity, so no component could opt out of it. It also
+   * carried `border-radius: 4px`, which is both unnecessary (an outline
+   * already follows the element's own radius) and destructive: it overrode
+   * rounded-none on the input inside an InputGroup, drawing a second rounded
+   * rectangle on every focus. One focused control looked like two nested
+   * squares.
+   */
+  :focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--color-accent) 60%, transparent);
+    outline-offset: 2px;
+  }
+  /*
+   * Form controls opt out and own their focus instead. Leaving them in meant
+   * every focused input drew both this outline and the component's own ring -
+   * two indicators for one state. Each control here has a deliberate focus
+   * treatment: the prebuilt Input draws border-ring + ring-3, and the rule
+   * below covers the plain inputs in the legacy settings markup that never
+   * had one. InputGroupInput is borderless on purpose; its group draws the
+   * ring.
+   */
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline: none;
+  }
+  input:focus,
+  textarea:focus {
+    border-color: var(--color-input-border-focused);
+  }
+  /*
+   * Browser-owned surfaces themed from the palette. Selection and caret
+   * otherwise ship with browser defaults that belong to no design system.
+   */
+  ::selection {
+    background: color-mix(in srgb, var(--color-accent) 30%, transparent);
+    color: var(--color-fg);
+  }
+  input,
+  textarea {
+    caret-color: var(--color-accent);
   }
   /*
    * The prebuilt components were shipped against shadcn's single --border, so
@@ -2765,7 +2792,7 @@ html, body, #root {
   width: 40px;
   height: 40px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--color-foreground-subtle);
   cursor: pointer;
@@ -2784,7 +2811,7 @@ html, body, #root {
   width: 32px;
   height: 32px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--color-foreground-subtle);
   cursor: pointer;
@@ -2826,7 +2853,7 @@ html, body, #root {
   max-width: 150px;
   min-height: 36px;
   padding: 0 4px 0 11px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--color-foreground-subtle);
   transition:
     background-color var(--duration-fast) var(--ease-out),
@@ -2868,7 +2895,7 @@ html, body, #root {
   flex: 0 0 auto;
   padding: 0;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: inherit;
   opacity: 0.55;
@@ -3087,7 +3114,7 @@ html, body, #root {
 .rcode-composer-model-trigger {
   justify-content: center;
   min-height: 40px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   flex: 0 1 auto;
   min-width: 0;
   /* Without overflow:hidden the label and its chevron render outside the
@@ -3135,7 +3162,7 @@ html, body, #root {
   min-height: 40px;
   padding: 0 12px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--color-foreground-subtle);
 }
@@ -3204,7 +3231,7 @@ html, body, #root {
    meaning on its own. The label is the important half: the icon alone cannot
    say whether the agent can currently run commands. */
 .rcode-mode-trigger-label {
-  color: var(--color-foreground);
+  color: var(--color-fg);
   font-weight: 500;
   line-height: 1;
   white-space: nowrap;
@@ -3231,7 +3258,7 @@ html, body, #root {
   min-width: 0;
 }
 .rcode-mode-item-label {
-  color: var(--color-foreground);
+  color: var(--color-fg);
   font-weight: 500;
   line-height: 1.3;
   /* select.tsx hard-codes whitespace-nowrap on Base UI's ItemText, and
@@ -3254,7 +3281,7 @@ html, body, #root {
 }
 .rcode-model-trigger-name {
   flex: 0 1 auto;
-  color: var(--color-foreground);
+  color: var(--color-fg);
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -3291,11 +3318,11 @@ html, body, #root {
   width: 18px;
   height: 30px;
   border: 1px solid var(--color-border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--color-surface);
   color: var(--color-fg);
   font: 600 12px/1 var(--font-ui);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.24);
+  box-shadow: var(--shadow-md);
   opacity: 0;
   transform: translate(-50%, -50%) scale(0.94);
   transition: opacity 120ms ease-out, transform 120ms ease-out;
@@ -3412,7 +3439,7 @@ html, body, #root {
   flex: 0 0 auto;
   gap: 4px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
   padding: 0 12px;
   min-height: 40px;
@@ -3540,7 +3567,7 @@ html, body, #root {
   font-weight: 500;
 }
 .rcode-effort-option svg {
-  color: var(--color-foreground);
+  color: var(--color-fg);
 }
 .rcode-model-selector [data-slot="command-list"] {
   max-height: min(52vh, 360px);
@@ -3594,7 +3621,7 @@ html, body, #root {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: var(--text-ui-base);
-  color: var(--color-foreground);
+  color: var(--color-fg);
 }
 .rcode-model-item-meta {
   flex: 0 1 auto;
@@ -3725,42 +3752,6 @@ html, body, #root {
 }
 
 /*
- * --- Global focus indicator ----------------------------------------------
- *
- * This lives here, outside @layer base, on purpose.
- *
- * The @layer base block above (line ~237) is DEAD: its leading comment
- * contains the character sequence that closes a CSS comment, in the middle of
- * a list of utility names. That terminates the comment early, so the parser
- * reads the remainder as one invalid rule and drops the whole block -
- * including the :focus-visible outline and the input focus rules that were
- * moved into it. Confirmed against the built CSS: that block's declarations
- * are absent from the cascade entirely.
- *
- * So the focus outline that used to live in an unlayered rule (where it
- * outranked every utility and forced border-radius:4px onto elements that had
- * opted out - the "two nested squares" bug) is currently gone entirely, and
- * plain buttons styled by the legacy class rules have no focus indicator at
- * all. This restores it properly:
- *
- *   - no border-radius is set, so the outline follows each element's own
- *     radius instead of overriding it;
- *   - form controls opt out, because the prebuilt Input draws its own
- *     border-ring + ring-3 and the InputGroup draws the ring for its
- *     borderless inner control. A second indicator on those was the original
- *     bug.
- */
-:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--color-accent) 60%, transparent);
-  outline-offset: 2px;
-}
-input:focus-visible,
-textarea:focus-visible,
-select:focus-visible {
-  outline: none;
-}
-
-/*
  * --- Palette: one-ui (Samsung One UI 6/7 prototype preset) ---------------
  *
  * Everything One UI lives under this one block, keyed off the data-theme
@@ -3768,12 +3759,16 @@ select:focus-visible {
  * class the prototype page (oneui.html) uses to scope the same tokens to a
  * subtree — light and dark render side by side there, one class each.
  *
- * Every declaration carries !important on purpose. applyTheme writes the
- * Theme object's palette inline on documentElement, and inline styles beat any
- * normal author rule; the !important is what makes this class the single
- * authority for the One UI language instead of a half-applied overlay. The
- * THEME_PRESETS entry in types.ts mirrors the dark values for the settings
- * preview card, but this block wins wherever the two could disagree.
+ * No declaration here is !important. The block and the Theme object in
+ * types.ts declare the SAME values, and applyTheme writes that object inline
+ * on documentElement, so the two agree and neither has to shout. Every
+ * derived token is a formula over a primitive, which is what makes the
+ * accent picker work: change --color-accent and the soft fills, the focus
+ * ring and the border ramp all follow it.
+ *
+ * The values here are also the fallback for the first paint, before
+ * applyTheme runs. index.html and gallery.html carry data-theme="one-ui"
+ * so the right palette is on screen from the first frame.
  *
  * Removal: delete this block, the "one-ui" entry in ThemePreset/THEME_PRESETS,
  * the classList.toggle in applyTheme, and the card in ThemeSettings.
@@ -3796,209 +3791,190 @@ select:focus-visible {
 
 [data-theme="one-ui"],
 .one-ui {
-  /* Surfaces. Four solid steps; hover/active stay alpha over whatever is
-     behind them, same scheme as the default palette. */
-  --color-bg: #111318 !important;
-  --color-surface: #1a1d23 !important;
-  --color-menu: #22262e !important;
-  --color-sidebar: #15181e !important;
-  --color-card: var(--color-surface) !important;
-  --color-popover: var(--color-menu) !important;
-  --color-input: var(--color-surface) !important;
-  --color-tab: var(--color-surface) !important;
-  --color-tab-active: var(--color-bg) !important;
+  /* Surfaces. Four solid steps; the interaction fills below are alpha over
+     whatever sits behind them, so a hover inside a card and a hover inside a
+     panel read the same. */
+  --color-bg: #111318;
+  --color-surface: #1a1d23;
+  --color-menu: #22262e;
+  --color-sidebar: #15181e;
+  --color-card: var(--color-surface);
+  --color-popover: var(--color-menu);
+  --color-input: var(--color-surface);
+  --color-tab: var(--color-surface);
+  --color-tab-active: var(--color-bg);
 
-  /* Text ladder. */
-  --color-fg: #e8eaf0 !important;
-  --color-foreground-subtle: color-mix(in srgb, var(--color-fg) 65%, transparent) !important;
-  --color-foreground-subtlest: color-mix(in srgb, var(--color-fg) 55%, transparent) !important;
-  --color-muted: var(--color-foreground-subtle) !important;
+  /* Text ladder. Three steps down from the foreground, each an alpha mix, so
+     the ladder reads correctly on every surface it lands on. */
+  --color-fg: #e8eaf0;
+  --color-muted: color-mix(in srgb, var(--color-fg) 65%, transparent);
+  --color-foreground-subtle: var(--color-muted);
+  --color-foreground-subtlest: color-mix(in srgb, var(--color-fg) 55%, transparent);
 
-  /* One UI blue, lifted for dark ground. Blue is the brand here — unlike the
+  /* One UI blue, lifted for dark ground. Blue is the brand here - unlike the
      monochrome default, One UI's accent is allowed to carry chrome. */
-  --color-accent: #4d8dff !important;
-  --color-brand: var(--color-accent) !important;
-  --color-accent-soft: rgba(77, 141, 255, 0.14) !important;
-  --color-accent-muted: rgba(77, 141, 255, 0.07) !important;
-  --color-accent-tint: #001d3d !important;
+  --color-accent: #4d8dff;
+  --color-brand: var(--color-accent);
+  --color-accent-soft: color-mix(in srgb, var(--color-accent) 14%, transparent);
+  --color-accent-muted: color-mix(in srgb, var(--color-accent) 7%, transparent);
+  --color-accent-tint: #001d3d;
 
   /* Status. */
-  --color-success: #3ddc84 !important;
-  --color-warning: #ffb300 !important;
-  --color-danger: #ff6b6b !important;
-  --color-danger-soft: rgba(255, 107, 107, 0.14) !important;
-  --color-danger-muted: rgba(255, 107, 107, 0.07) !important;
+  --color-success: #3ddc84;
+  --color-warning: #ffb300;
+  --color-danger: #ff6b6b;
+  --color-success-soft: color-mix(in srgb, var(--color-success) 14%, transparent);
+  --color-warning-soft: color-mix(in srgb, var(--color-warning) 14%, transparent);
+  --color-danger-soft: color-mix(in srgb, var(--color-danger) 14%, transparent);
+  --color-danger-muted: color-mix(in srgb, var(--color-danger) 7%, transparent);
 
   /* Interaction fills. Selection stays a neutral surface step like the
-     default palette's white-alpha fill — the blue full-row wash read as a
+     default palette's white-alpha fill - the blue full-row wash read as a
      decorative blob and is gone; selected rows keep their state markers. */
-  --color-hover: rgba(232, 234, 240, 0.07) !important;
-  --color-active: rgba(232, 234, 240, 0.12) !important;
-  --color-selected: rgba(232, 234, 240, 0.14) !important;
-  --color-menu-hover: #2b303a !important;
+  --color-hover: color-mix(in srgb, var(--color-fg) 7%, transparent);
+  --color-active: color-mix(in srgb, var(--color-fg) 12%, transparent);
+  --color-selected: color-mix(in srgb, var(--color-fg) 14%, transparent);
+  --color-menu-hover: #2b303a;
 
-  /* Borders. Focus takes the accent — One UI signals input focus with the
+  /* Borders. Focus takes the accent - One UI signals input focus with the
      blue rather than the monochrome brand. */
-  --color-border: rgba(232, 234, 240, 0.12) !important;
-  --color-border-hover: rgba(232, 234, 240, 0.2) !important;
-  --color-card-border: rgba(232, 234, 240, 0.12) !important;
-  --color-popover-border: rgba(232, 234, 240, 0.12) !important;
-  --color-input-border: rgba(232, 234, 240, 0.14) !important;
-  --color-input-border-hover: rgba(232, 234, 240, 0.24) !important;
-  --color-input-border-focused: var(--color-accent) !important;
+  --color-border: color-mix(in srgb, var(--color-fg) 12%, transparent);
+  --color-border-hover: color-mix(in srgb, var(--color-fg) 20%, transparent);
+  --color-card-border: var(--color-border);
+  --color-popover-border: var(--color-border);
+  --color-input-border: color-mix(in srgb, var(--color-fg) 14%, transparent);
+  --color-input-border-hover: color-mix(in srgb, var(--color-fg) 24%, transparent);
+  --color-input-border-focused: var(--color-accent);
 
-  /* shadcn aliases for the prebuilt components. White on the #4d8dff fill is
-     One UI's own pairing (3.2:1 — AA large only, a fidelity trade the default
-     theme does not make); every body-text token above clears 4.5:1. */
-  --background: var(--color-bg) !important;
-  --foreground: var(--color-fg) !important;
-  --card: var(--color-surface) !important;
-  --card-foreground: var(--color-fg) !important;
-  --popover: var(--color-menu) !important;
-  --popover-foreground: var(--color-fg) !important;
-  --primary: var(--color-accent) !important;
-  --primary-foreground: #ffffff !important;
-  --secondary: var(--color-surface) !important;
-  --secondary-foreground: var(--color-fg) !important;
-  --muted: var(--color-surface) !important;
-  --muted-foreground: var(--color-foreground-subtle) !important;
-  --accent: var(--color-surface) !important;
-  --accent-foreground: var(--color-fg) !important;
-  --destructive: var(--color-danger) !important;
-  --destructive-foreground: #111318 !important;
-  --border: var(--color-border) !important;
-  --input: var(--color-input-border) !important;
-  --ring: var(--color-accent) !important;
-
-  --sidebar: var(--color-sidebar) !important;
-  --sidebar-foreground: var(--color-fg) !important;
-  --sidebar-primary: var(--color-accent) !important;
-  --sidebar-primary-foreground: #ffffff !important;
-  --sidebar-accent: var(--color-hover) !important;
-  --sidebar-accent-foreground: var(--color-fg) !important;
-  --sidebar-border: var(--color-border) !important;
-  --sidebar-ring: var(--color-accent) !important;
+  /* Overlay scrim, and the code and diff palettes. */
+  --color-scrim: rgb(0 0 0 / 0.6);
+  --color-code-keyword: #c084fc;
+  --color-code-type: var(--color-accent);
+  --color-code-comment: var(--color-foreground-subtlest);
+  --color-code-string: var(--color-success);
+  --color-code-number: var(--color-warning);
+  --color-diff-added: #17b88b;
+  --color-diff-removed: #dc2626;
+  --color-diff-added-soft: color-mix(in srgb, var(--color-diff-added) 18%, transparent);
+  --color-diff-removed-soft: color-mix(in srgb, var(--color-diff-removed) 18%, transparent);
 
   /* Elevation. One UI separates with surface steps first and soft shadows
      second; slightly deeper than the default's hairline-only scheme. */
-  --shadow-md: 0 6px 16px -4px rgb(0 0 0 / 0.5), 0 2px 8px -2px rgb(0 0 0 / 0.35) !important;
-  --shadow-lg: 0 16px 40px -8px rgb(0 0 0 / 0.6), 0 6px 16px -6px rgb(0 0 0 / 0.4) !important;
-  --color-shadow: rgb(0 0 0 / 0.45) !important;
+  --shadow-md: 0 6px 16px -4px rgb(0 0 0 / 0.5), 0 2px 8px -2px rgb(0 0 0 / 0.35);
+  --shadow-lg: 0 16px 40px -8px rgb(0 0 0 / 0.6), 0 6px 16px -6px rgb(0 0 0 / 0.4);
+  --color-shadow: rgb(0 0 0 / 0.45);
 
   /*
-   * Shape. One UI is far rounder than Tailwind's 4/6/8/12 baseline:
-   * controls 8/12, cards and panels 16, large containers 24. applyTheme
-   * derives its own ladder from theme.radius, so these four override it.
+   * Shape. One UI is far rounder than Tailwind's 4/6/8/12 baseline: controls
+   * 8/12, cards and panels 16, large containers 24. The ladder is derived
+   * from --radius, so the radius slider in Settings moves all four steps
+   * together instead of overriding three of them.
    */
-  --radius-sm: 8px !important;
-  --radius-md: 12px !important;
-  --radius: 16px !important;
-  --radius-lg: 16px !important;
-  --radius-xl: 24px !important;
+  --radius: 16px;
+  --radius-sm: max(2px, calc(var(--radius) - 8px));
+  --radius-md: max(2px, calc(var(--radius) - 4px));
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 8px);
 
   /*
    * Type. One UI is light-first: the body step moves 14 -> 15px and the
    * text-ui-* scale spreads wider around it. --font-scale (the settings
-   * slider) still multiplies through. Line height is set on body below.
+   * slider) still multiplies through.
    */
-  --ui-font-size: calc(15px * var(--font-scale)) !important;
-  --text-ui-xl: calc(var(--ui-font-size) + 6px) !important;
-  --text-ui-lg: calc(var(--ui-font-size) + 4px) !important;
-  --text-ui-base: var(--ui-font-size) !important;
-  --text-ui-caption: calc(var(--ui-font-size) - 1px) !important;
-  --text-ui-sm: calc(var(--ui-font-size) - 2px) !important;
-  --text-ui-xs: calc(var(--ui-font-size) - 3px) !important;
-  --text-ui-2xs: calc(var(--ui-font-size) - 4px) !important;
+  --ui-font-base: 15px;
+  --ui-font-size: calc(var(--ui-font-base) * var(--font-scale));
+  --text-ui-xl: calc(var(--ui-font-size) + 6px);
+  --text-ui-lg: calc(var(--ui-font-size) + 4px);
+  --text-ui-base: var(--ui-font-size);
+  --text-ui-caption: calc(var(--ui-font-size) - 1px);
+  --text-ui-sm: calc(var(--ui-font-size) - 2px);
+  --text-ui-xs: calc(var(--ui-font-size) - 3px);
+  --text-ui-2xs: calc(var(--ui-font-size) - 4px);
 
   /*
    * Motion. Springy where the default palette is flat: slower durations and
    * an overshoot curve for entrances. --ease-out stays a plain decel for
-   * colour/hover transitions — overshoot belongs to things that move, not to
+   * colour/hover transitions - overshoot belongs to things that move, not to
    * things that fade.
    */
-  --duration-fast: 200ms !important;
-  --duration-normal: 300ms !important;
-  --duration-slow: 450ms !important;
-  --duration-panel: 300ms !important;
-  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  --duration-fast: 200ms;
+  --duration-normal: 300ms;
+  --duration-slow: 450ms;
+  --duration-panel: 300ms;
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 /* One UI light — same preset with darkMode: false, which applyTheme surfaces
    as data-mode="light"; the prototype page scopes it with .one-ui-light. */
 [data-theme="one-ui"][data-mode="light"],
 .one-ui-light {
-  --color-bg: #f2f3f5 !important;
-  --color-surface: #ffffff !important;
-  --color-menu: #ffffff !important;
-  --color-sidebar: #f7f8fa !important;
-  --color-card: var(--color-surface) !important;
-  --color-popover: var(--color-menu) !important;
-  --color-input: var(--color-surface) !important;
-  --color-tab: var(--color-surface) !important;
-  --color-tab-active: var(--color-bg) !important;
+  --color-bg: #f2f3f5;
+  --color-surface: #ffffff;
+  --color-menu: #ffffff;
+  --color-sidebar: #f7f8fa;
+  --color-card: var(--color-surface);
+  --color-popover: var(--color-menu);
+  --color-input: var(--color-surface);
+  --color-tab: var(--color-surface);
+  --color-tab-active: var(--color-bg);
 
-  --color-fg: #1b1f2a !important;
-  --color-foreground-subtle: color-mix(in srgb, var(--color-fg) 70%, transparent) !important;
-  --color-foreground-subtlest: color-mix(in srgb, var(--color-fg) 63%, transparent) !important;
-  --color-muted: var(--color-foreground-subtle) !important;
+  --color-fg: #1b1f2a;
+  --color-muted: color-mix(in srgb, var(--color-fg) 70%, transparent);
+  --color-foreground-subtle: var(--color-muted);
+  --color-foreground-subtlest: color-mix(in srgb, var(--color-fg) 63%, transparent);
 
-  --color-accent: #0064ff !important;
-  --color-brand: var(--color-accent) !important;
-  --color-accent-soft: rgba(0, 100, 255, 0.1) !important;
-  --color-accent-muted: rgba(0, 100, 255, 0.05) !important;
-  --color-accent-tint: #e8f0ff !important;
+  --color-accent: #0064ff;
+  --color-brand: var(--color-accent);
+  --color-accent-soft: color-mix(in srgb, var(--color-accent) 10%, transparent);
+  --color-accent-muted: color-mix(in srgb, var(--color-accent) 5%, transparent);
+  --color-accent-tint: #e8f0ff;
 
-  --color-success: #1e8e3e !important;
-  --color-warning: #b26a00 !important;
-  --color-danger: #d93025 !important;
-  --color-danger-soft: rgba(217, 48, 37, 0.1) !important;
-  --color-danger-muted: rgba(217, 48, 37, 0.05) !important;
+  --color-success: #1e8e3e;
+  --color-warning: #b26a00;
+  --color-danger: #d93025;
+  --color-success-soft: color-mix(in srgb, var(--color-success) 14%, transparent);
+  --color-warning-soft: color-mix(in srgb, var(--color-warning) 14%, transparent);
+  --color-danger-soft: color-mix(in srgb, var(--color-danger) 10%, transparent);
+  --color-danger-muted: color-mix(in srgb, var(--color-danger) 5%, transparent);
 
-  --color-hover: rgba(27, 31, 42, 0.04) !important;
-  --color-active: rgba(27, 31, 42, 0.08) !important;
-  --color-selected: rgba(27, 31, 42, 0.1) !important;
-  --color-menu-hover: #f0f2f6 !important;
+  --color-hover: color-mix(in srgb, var(--color-fg) 4%, transparent);
+  --color-active: color-mix(in srgb, var(--color-fg) 8%, transparent);
+  --color-selected: color-mix(in srgb, var(--color-fg) 10%, transparent);
+  --color-menu-hover: #f0f2f6;
 
-  --color-border: rgba(27, 31, 42, 0.1) !important;
-  --color-border-hover: rgba(27, 31, 42, 0.16) !important;
-  --color-card-border: rgba(27, 31, 42, 0.1) !important;
-  --color-popover-border: rgba(27, 31, 42, 0.1) !important;
-  --color-input-border: rgba(27, 31, 42, 0.12) !important;
-  --color-input-border-hover: rgba(27, 31, 42, 0.18) !important;
-  --color-input-border-focused: var(--color-accent) !important;
+  --color-border: color-mix(in srgb, var(--color-fg) 10%, transparent);
+  --color-border-hover: color-mix(in srgb, var(--color-fg) 16%, transparent);
+  --color-card-border: var(--color-border);
+  --color-popover-border: var(--color-border);
+  --color-input-border: color-mix(in srgb, var(--color-fg) 12%, transparent);
+  --color-input-border-hover: color-mix(in srgb, var(--color-fg) 18%, transparent);
+  --color-input-border-focused: var(--color-accent);
 
-  --background: var(--color-bg) !important;
-  --foreground: var(--color-fg) !important;
-  --card: var(--color-surface) !important;
-  --card-foreground: var(--color-fg) !important;
-  --popover: var(--color-menu) !important;
-  --popover-foreground: var(--color-fg) !important;
-  --primary: var(--color-accent) !important;
-  --primary-foreground: #ffffff !important;
-  --secondary: var(--color-surface) !important;
-  --secondary-foreground: var(--color-fg) !important;
-  --muted: var(--color-surface) !important;
-  --muted-foreground: var(--color-foreground-subtle) !important;
-  --accent: var(--color-surface) !important;
-  --accent-foreground: var(--color-fg) !important;
-  --destructive: var(--color-danger) !important;
-  --destructive-foreground: #ffffff !important;
-  --border: var(--color-border) !important;
-  --input: var(--color-input-border) !important;
-  --ring: var(--color-accent) !important;
+  --color-scrim: rgb(0 0 0 / 0.4);
+  --color-code-keyword: #a855f7;
+  --color-code-type: var(--color-accent);
+  --color-code-comment: var(--color-foreground-subtlest);
+  --color-code-string: var(--color-success);
+  --color-code-number: var(--color-warning);
+  --color-diff-added: #17b88b;
+  --color-diff-removed: #dc2626;
+  --color-diff-added-soft: color-mix(in srgb, var(--color-diff-added) 18%, transparent);
+  --color-diff-removed-soft: color-mix(in srgb, var(--color-diff-removed) 18%, transparent);
 
-  --sidebar: var(--color-sidebar) !important;
-  --sidebar-foreground: var(--color-fg) !important;
-  --sidebar-primary: var(--color-accent) !important;
-  --sidebar-primary-foreground: #ffffff !important;
-  --sidebar-accent: var(--color-hover) !important;
-  --sidebar-accent-foreground: var(--color-fg) !important;
-  --sidebar-border: var(--color-border) !important;
-  --sidebar-ring: var(--color-accent) !important;
+  /*
+   * White on the blue fill, not the background colour. The base layer
+   * derives --primary-foreground from --color-bg, which is right for the
+   * monochrome themes (a white fill needs a dark label) and wrong here: the
+   * near-black label measures 4.44:1 on #0064ff, a hair under the AA floor,
+   * while pure white measures 4.92:1.
+   */
+  --primary-foreground: #ffffff;
+  --sidebar-primary-foreground: #ffffff;
+  --destructive-foreground: #ffffff;
 
-  --shadow-md: 0 6px 16px -4px rgb(0 0 0 / 0.12), 0 2px 6px -2px rgb(0 0 0 / 0.08) !important;
-  --shadow-lg: 0 16px 40px -8px rgb(0 0 0 / 0.16), 0 6px 16px -6px rgb(0 0 0 / 0.08) !important;
-  --color-shadow: rgb(0 0 0 / 0.12) !important;
+  --shadow-md: 0 6px 16px -4px rgb(0 0 0 / 0.12), 0 2px 6px -2px rgb(0 0 0 / 0.08);
+  --shadow-lg: 0 16px 40px -8px rgb(0 0 0 / 0.16), 0 6px 16px -6px rgb(0 0 0 / 0.08);
+  --color-shadow: rgb(0 0 0 / 0.12);
 }
 
 /* One UI line height. Inherited everywhere the class or attribute scope
@@ -4006,20 +3982,6 @@ select:focus-visible {
 [data-theme="one-ui"] body,
 .one-ui {
   line-height: 1.55;
-}
-
-/*
- * Primary fills. Tailwind's text-primary-foreground utility resolves to
- * var(--color-bg) via the @theme inline mapping, so a light-mode button label
- * is #f2f3f5 on #0064ff = 4.44:1, a hair under the AA floor measured
- * everywhere else in this theme. Pure white on the same blue is 4.92:1.
- * Dark keeps the near-black label: on the lifted #4d8dff it measures 5.9:1,
- * while One UI's own white-on-blue pairing would measure 3.2:1 — the AA floor
- * wins over screenshot fidelity there.
- */
-.one-ui-light .bg-primary,
-[data-theme="one-ui"][data-mode="light"] .bg-primary {
-  color: #ffffff;
 }
 
 /*
