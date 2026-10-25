@@ -17,11 +17,26 @@ import { api } from "../api/client";
 import { useApp } from "./AppContext";
 
 import type { LiveStep, Message, ChatChunk } from "../types";
+import { appendReasoning, appendText, applyCanonicalBlocks } from "../lib/liveSteps";
+
+/** A message the reader sent while a turn was still running. */
+export interface QueuedMessage {
+  id: string;
+  text: string;
+}
 
 export interface SendMeta {
   mode?: string;
   reasoningEffort?: string;
   model?: string;
+}
+
+/** The index of the last tool result, which ends the previous message. */
+function lastToolResultIndex(steps: LiveStep[]): number {
+  for (let index = steps.length - 1; index >= 0; index -= 1) {
+    if (steps[index].kind === "tool_result") return index;
+  }
+  return -1;
 }
 
 export function useChat(sessionId: string | null) {
@@ -35,6 +50,16 @@ export function useChat(sessionId: string | null) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [streamingTargetId, setStreamingTargetId] = useState<string | null>(null);
+  // Messages sent while a turn is still running. They are held here and
+  // sent when the turn ends, rather than being dropped.
+  const [queuedMessages, setQueuedMessages] = useState<QueuedMessage[]>([]);
+  const queuedRef = useRef<QueuedMessage[]>([]);
+  // The drain at the end of a turn has to call send again, and send is
+  // rebuilt whenever its inputs change. A ref keeps the drain from
+  // rebuilding the whole hook.
+  const sendRef = useRef<(text: string, meta?: SendMeta) => Promise<void>>(
+    async () => {}
+  );
 
   // Load messages when session changes
   useEffect(() => {
@@ -65,33 +90,29 @@ export function useChat(sessionId: string | null) {
       setLiveSteps(p => [...p, { kind: "tool_result", name: chunk.tool?.name ?? "tool", result: chunk.tool?.result, status: "done" }]);
       return;
     }
+    if (chunk.kind === "assistant_end" && chunk.blocks) {
+      // The canonical blocks of the message that just ended: all of its
+      // reasoning, then all of its text. They replace the message's segment
+      // wholesale, which is the repair the provider contract describes: a
+      // provider may fragment one message across reasoning and text deltas
+      // in any order ("reasoning, F, reasoning, ORK-OK"), and the canonical
+      // blocks are what put it back together. Without this the live view
+      // kept the raw wire order and only snapped into shape when the turn
+      // ended, so a fragmented stream read "ORK-OK" for the whole turn.
+      const blocks = chunk.blocks;
+      setLiveSteps(p => applyCanonicalBlocks(p, blocks));
+      return;
+    }
     const reasoningDelta = chunk.reasoning;
     if (reasoningDelta) {
       setStreamingReasoning(prev => prev + reasoningDelta);
-      setLiveSteps(p => {
-        const last = p[p.length - 1];
-        if (last?.kind === "reasoning") {
-          const next = [...p];
-          next[next.length - 1] = { ...last, text: last.text + reasoningDelta };
-          return next;
-        }
-        return [...p, { kind: "reasoning", text: reasoningDelta, bornAt: Date.now() }];
-      });
+      setLiveSteps(p => appendReasoning(p, reasoningDelta));
       return;
     }
     const contentDelta = chunk.content;
     if (contentDelta) {
-      if (contentDelta.trim().length === 0) return;
       setStreamingContent(prev => prev + contentDelta);
-      setLiveSteps(p => {
-        const last = p[p.length - 1];
-        if (last?.kind === "response") {
-          const next = [...p];
-          next[next.length - 1] = { ...last, text: last.text + contentDelta };
-          return next;
-        }
-        return [...p, { kind: "response", text: contentDelta }];
-      });
+      setLiveSteps(p => appendText(p, contentDelta));
     }
   }, []);
 
@@ -112,13 +133,28 @@ export function useChat(sessionId: string | null) {
 
   const endTurn = useCallback(async (sid: string, removeListener: () => void) => {
     removeListener();
+    // The persisted messages are fetched BEFORE the streaming state is
+    // cleared, so the streamed turn and the persisted one swap in a single
+    // commit. The other order unmounts the live message for a frame - the
+    // answer and the trace vanish and come back - which reads as a flicker
+    // at the end of every turn.
+    const msgs = await api.getMessages(sid).catch(() => null);
+    if (msgs) setMessages(msgs);
     setIsStreaming(false);
     setStreamingContent("");
     setStreamingReasoning("");
     setLiveSteps([]);
     setStreamingTargetId(null);
-    const msgs = await api.getMessages(sid);
-    setMessages(msgs);
+    // Drain the queue: a message sent while this turn was running goes
+    // now. The next turn starts on the next tick, so this turn's
+    // persisted messages are on screen before its placeholder appears.
+    const next = queuedRef.current.shift();
+    setQueuedMessages([...queuedRef.current]);
+    if (next) {
+      window.setTimeout(() => {
+        void sendRef.current(next.text);
+      }, 0);
+    }
   }, []);
 
   const isStreamingRef = useRef(false);
@@ -153,6 +189,10 @@ export function useChat(sessionId: string | null) {
       await endTurn(sid, removeListener);
     }
   }, [sessionId, settings.model, handleChunk, beginTurn, endTurn]);
+
+  useEffect(() => {
+    sendRef.current = sendMessage;
+  }, [sendMessage]);
 
   // For welcome → new session: send to a specific id not yet in the hook's closure
   const sendTo = useCallback(async (targetId: string, text: string, meta?: SendMeta) => {
@@ -236,7 +276,7 @@ export function useChat(sessionId: string | null) {
   }, [sessionId]);
 
   return {
-    messages, streamingContent, streamingReasoning, liveSteps, turnUsage,
+    messages, streamingContent, streamingReasoning, liveSteps, turnUsage, queuedMessages,
     turnSecs, isStreaming, streamingTargetId, error,
     sendMessage, sendTo, resend, setVersion, stopStream, editMessage, deleteMessage, refreshMessages,
   };

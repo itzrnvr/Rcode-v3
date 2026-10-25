@@ -62,6 +62,7 @@ export function ChatView() {
     isStreaming,
     liveSteps,
     messages,
+    queuedMessages,
     refreshMessages,
     resend,
     sendMessage,
@@ -373,28 +374,34 @@ export function ChatView() {
           );
         })}
 
+        {/*
+          The placeholder and the live turn are the same slot, not two
+          siblings. As two siblings they swapped places when the first token
+          arrived - the shimmer unmounted and the trace mounted in a different
+          node - which moved the answer up by a row.
+        */}
         {isStreaming && retryTargetIndex === -1 && (
-          <AgentMessage
-            liveSteps={liveSteps}
-            liveUsage={turnUsage}
-            message={{
-              id: `streaming-${currentSessionId ?? "root"}`,
-              sessionId: currentSessionId ?? "",
-              role: "assistant",
-              content: streamingContent,
-              createdAt: Date.now(),
-            }}
-            streaming
-            streamingContent={streamingContent}
-          />
-        )}
-
-        {isStreaming && retryTargetIndex === -1 && liveSteps.length === 0 && !streamingContent && (
-          <Message from="assistant">
-            <MessageContent>
-              <Shimmer>Thinking…</Shimmer>
-            </MessageContent>
-          </Message>
+          liveSteps.length === 0 && !streamingContent ? (
+            <Message from="assistant">
+              <MessageContent>
+                <Shimmer>Thinking…</Shimmer>
+              </MessageContent>
+            </Message>
+          ) : (
+            <AgentMessage
+              liveSteps={liveSteps}
+              liveUsage={turnUsage}
+              message={{
+                id: `streaming-${currentSessionId ?? "root"}`,
+                sessionId: currentSessionId ?? "",
+                role: "assistant",
+                content: streamingContent,
+                createdAt: Date.now(),
+              }}
+              streaming
+              streamingContent={streamingContent}
+            />
+          )
         )}
 
         {error && (
@@ -405,6 +412,23 @@ export function ChatView() {
           </Message>
         )}
       </AgentConversation>
+
+      {/*
+        Messages sent while a turn was running. They wait above the composer
+        rather than in the transcript: putting them in the transcript would
+        move the scroll position every time one was queued, and the list is
+        supposed to hold still.
+      */}
+      {queuedMessages.length > 0 && (
+        <div className="rcode-queued-messages">
+          {queuedMessages.map(message => (
+            <div key={message.id} className="rcode-queued-message">
+              <span className="rcode-queued-message-text">{message.text}</span>
+              <span className="rcode-queued-message-note">queued</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       <AgentPromptInput
         key={`composer-${currentSessionId ?? "welcome"}`}

@@ -144,8 +144,20 @@ export interface ChatChunk {
   content: string;
   done: boolean;
   reasoning?: string;
-  kind?: "tool_call" | "tool_result";
+  kind?: "tool_call" | "tool_result" | "assistant_end";
   tool?: { name: string; args?: string; result?: string };
+  /**
+   * The canonical blocks of the assistant message that just ended: all of its
+   * reasoning in one block, then all of its text in one block.
+   *
+   * The provider contract is that a provider may fragment one assistant
+   * message across reasoning and text deltas in any order - one delivered
+   * `reasoning, "F", reasoning, "ORK-OK"` - and the canonical blocks are
+   * what repair it. The backend applies them to the transcript it persists;
+   * this carries them across so the LIVE view is repaired the same way,
+   * instead of only snapping into shape when the turn ends.
+   */
+  blocks?: Array<{ type: "thinking" | "text"; text: string }>;
   secs?: number;
   usage?: { prompt_tokens?: number; completion_tokens?: number; prompt_tokens_details?: { cached_tokens?: number }; completion_tokens_details?: { reasoning_tokens?: number } };
 }

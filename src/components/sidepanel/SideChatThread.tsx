@@ -108,28 +108,31 @@ export function SideChatThread({ sessionId, title }: SideChatThreadProps) {
           });
         })()}
 
+        {/* The placeholder and the live turn are the same slot, not two
+            siblings, so the first token swaps one for the other in place
+            instead of moving the answer up by a row. */}
         {isStreaming && !streamingTargetId && (
-          <AgentMessage
-            liveSteps={liveSteps}
-            liveUsage={turnUsage}
-            message={{
-              id: `streaming-${sessionId}`,
-              sessionId,
-              role: "assistant",
-              content: streamingContent,
-              createdAt: Date.now(),
-            }}
-            streaming
-            streamingContent={streamingContent}
-          />
-        )}
-
-        {isStreaming && !streamingTargetId && liveSteps.length === 0 && !streamingContent && (
-          <Message from="assistant">
-            <MessageContent>
-              <Shimmer>Thinking…</Shimmer>
-            </MessageContent>
-          </Message>
+          liveSteps.length === 0 && !streamingContent ? (
+            <Message from="assistant">
+              <MessageContent>
+                <Shimmer>Thinking…</Shimmer>
+              </MessageContent>
+            </Message>
+          ) : (
+            <AgentMessage
+              liveSteps={liveSteps}
+              liveUsage={turnUsage}
+              message={{
+                id: `streaming-${sessionId}`,
+                sessionId,
+                role: "assistant",
+                content: streamingContent,
+                createdAt: Date.now(),
+              }}
+              streaming
+              streamingContent={streamingContent}
+            />
+          )
         )}
 
         {error && (

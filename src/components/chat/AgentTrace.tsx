@@ -352,7 +352,7 @@ export function AgentTrace({
                 </TraceDescription>
               </TraceLine>
             </TraceCollapsibleTrigger>
-            <TraceCollapsibleContent keepMounted>
+            <TraceCollapsibleContent keepMounted instant={summaryOpen === undefined}>
               <Trace>
                 {steps.map(step => {
                   const detail = hasDetail(step);
@@ -384,7 +384,7 @@ export function AgentTrace({
                       }
                     >
                       <TraceCollapsibleTrigger>{line}</TraceCollapsibleTrigger>
-                      <TraceCollapsibleContent>
+                      <TraceCollapsibleContent instant={openSteps[step.id] === undefined}>
                         <StepDetail step={step} />
                       </TraceCollapsibleContent>
                     </TraceCollapsible>

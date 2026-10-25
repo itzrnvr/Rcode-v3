@@ -96,9 +96,11 @@ async function runTurn(
       tools,
       onChunk: c => {
         if (c.kind === "text" && c.delta) {
-          // OpenAI-compatible providers may emit a whitespace-only text delta
-          // before tool calls. It is not a meaningful response event.
-          if (c.delta.trim().length === 0) return;
+          // Whitespace-only text deltas are kept. They are not a meaningful
+          // response on their own - the renderer drops them when it picks the
+          // answer - but they are part of the answer's text, and dropping them
+          // here made the live answer differ from the persisted one until the
+          // turn ended.
           const last = events[events.length - 1];
           if (last?.kind === "response") {
             last.text += c.delta;
@@ -126,6 +128,17 @@ async function runTurn(
           usageOut += c.usage.output;
         } else if (c.kind === "assistant_end" && c.blocks) {
           reconcileAssistantSegment(c.blocks);
+          // The canonical blocks go to the renderer too. The transcript is
+          // repaired here; without this the live view kept the raw wire order
+          // and only snapped into shape when the turn ended, which is how a
+          // fragmented stream showed the reader "ORK-OK" instead of
+          // "FORK-OK" for the whole turn.
+          sendChunk({
+            content: "",
+            done: false,
+            kind: "assistant_end",
+            blocks: c.blocks.map(block => ({ type: block.type, text: block.text })),
+          });
         }
       },
     });

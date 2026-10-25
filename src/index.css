@@ -2218,6 +2218,44 @@
   container-type: inline-size;
   container-name: rcode-composer;
 }
+/*
+ * Messages sent while a turn was running, waiting their turn above the
+ * composer. They sit outside the conversation on purpose: in the transcript
+ * they would push the scroll position every time one was queued, and the
+ * transcript is supposed to hold still while a response streams.
+ */
+.rcode-queued-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 16px 8px;
+}
+.rcode-queued-message {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+.rcode-queued-message-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-ui-sm);
+  color: var(--color-foreground-subtle);
+}
+.rcode-queued-message-note {
+  flex-shrink: 0;
+  font-size: var(--text-ui-xs);
+  color: var(--color-foreground-subtlest);
+}
 /* The composer card, from the prototype's Composer: a rounded container on
    the surface fill whose hairline strengthens on focus — no ring, no glow;
    focus is a border step like every other One UI control. The hard shadow

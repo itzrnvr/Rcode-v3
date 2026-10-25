@@ -14,7 +14,17 @@ export const Conversation = ({ className, ...props }: ConversationProps) => (
   <StickToBottom
     className={cn("relative flex-1 overflow-y-hidden", className)}
     initial="smooth"
-    resize="smooth"
+    /*
+     * Pinning is instant, not a spring.
+     *
+     * A streamed token resizes the content, and a smooth resize restarts a
+     * 350ms spring on every one of them - so the last lines of the answer
+     * visibly float and drift instead of sitting still, and a shrink (the
+     * trace folding when the answer starts) fights the spring that is still
+     * running and snaps the scroll. "instant" pins the bottom on the frame
+     * the content changed.
+     */
+    resize="instant"
     role="log"
     {...props}
   />

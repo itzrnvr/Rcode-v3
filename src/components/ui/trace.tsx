@@ -128,13 +128,28 @@ function TraceCollapsibleTrigger({
 
 function TraceCollapsibleContent({
   className,
+  instant,
   children,
   ...props
-}: React.ComponentProps<typeof CollapsibleContent>) {
+}: React.ComponentProps<typeof CollapsibleContent> & {
+  /**
+   * Fold without animating the height.
+   *
+   * A height animation moves everything below it, so a panel that folds on its
+   * own - the trace closing when the answer starts - drags the answer around
+   * for the length of the animation. The automatic folds use this; the ones
+   * the reader asked for stay animated.
+   */
+  instant?: boolean;
+}) {
   return (
     <CollapsibleContent
       data-slot="trace-collapsible-content"
-      className="h-(--collapsible-panel-height) min-w-0 overflow-hidden transition-[height] duration-200 data-ending-style:h-0 data-starting-style:h-0"
+      className={cn(
+        "h-(--collapsible-panel-height) min-w-0 overflow-hidden",
+        instant ? "transition-none" : "transition-[height] duration-200",
+        "data-ending-style:h-0 data-starting-style:h-0"
+      )}
       {...props}
     >
       <div
