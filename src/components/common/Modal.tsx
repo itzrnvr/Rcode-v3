@@ -29,7 +29,7 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
     <div className="settings-overlay" onClick={onClose}>
       <div className="settings-modal" onClick={e => e.stopPropagation()}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-          <h2 style={{ fontSize: 16, fontWeight: 600 }}>{title}</h2>
+          <h2 className="text-ui-lg font-semibold">{title}</h2>
           <button className="btn" onClick={onClose}>✕</button>
         </div>
         {children}

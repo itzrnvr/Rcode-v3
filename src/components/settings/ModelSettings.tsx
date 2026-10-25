@@ -170,25 +170,25 @@ export function ModelSettings() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 0, height: "100%" }}>
-      <div style={{ padding: "20px 28px 12px", color: "var(--color-foreground-subtle)", fontSize: 13 }}>
+      <div className="text-ui-caption" style={{ padding: "20px 28px 12px", color: "var(--color-foreground-subtle)" }}>
         Manage custom model providers. Once configured, they can be selected during chat.
       </div>
 
       <div style={{ flex: 1, display: "flex", minHeight: 0, padding: "0 28px 20px" }}>
         {/* Left: providers */}
         <div style={{ width: 240, borderRight: "1px solid var(--color-border)", paddingRight: 14, overflowY: "auto" }}>
-          <div style={{ fontSize: 12, color: "var(--color-foreground-subtle)", padding: "8px 6px" }}>Providers</div>
+          <div className="text-ui-sm" style={{ color: "var(--color-foreground-subtle)", padding: "8px 6px" }}>Providers</div>
           {providers.filter(p => !p.isCustom).map(p => (
             <button key={p.id} onClick={() => setSelectedId(p.id)} className="ms-provider-row" style={{ background: selectedId === p.id ? "var(--color-bg-tertiary)" : "transparent" }}>
               <span style={{ flex: 1, textAlign: "left" }}>{p.name}</span>
-              <span style={{ width: 7, height: 7, borderRadius: 999, background: p.enabled ? "#22c55e" : "#52525b" }} />
+              <span className="rounded-full" style={{ width: 7, height: 7, background: p.enabled ? "var(--color-success)" : "var(--color-foreground-subtlest)" }} />
             </button>
           ))}
-          <div style={{ fontSize: 12, color: "var(--color-foreground-subtle)", padding: "14px 6px 8px" }}>Custom providers</div>
+          <div className="text-ui-sm" style={{ color: "var(--color-foreground-subtle)", padding: "14px 6px 8px" }}>Custom providers</div>
           {providers.filter(p => p.isCustom).map(p => (
             <button key={p.id} onClick={() => setSelectedId(p.id)} className="ms-provider-row" style={{ background: selectedId === p.id ? "var(--color-bg-tertiary)" : "transparent" }}>
               <span style={{ flex: 1, textAlign: "left" }}>{p.name}</span>
-              <span style={{ width: 7, height: 7, borderRadius: 999, background: p.enabled ? "#22c55e" : "#52525b" }} />
+              <span className="rounded-full" style={{ width: 7, height: 7, background: p.enabled ? "var(--color-success)" : "var(--color-foreground-subtlest)" }} />
             </button>
           ))}
           <button onClick={addProvider} className="ms-provider-row" style={{ color: "var(--color-fg)" }}>
@@ -215,14 +215,14 @@ export function ModelSettings() {
                   />
                 ) : (
                   <>
-                    <span style={{ fontSize: 16, fontWeight: 700 }}>{selected.name}</span>
+                    <span className="text-ui-lg font-bold">{selected.name}</span>
                     <button className="ms-iconbtn" title="Rename provider" onClick={() => { setRenameValue(selected.name); setRenaming(true); }}><EditIcon size={13} /></button>
                   </>
                 )}
                 {selected.enabled ? (
-                  <span style={{ padding: "4px 12px", borderRadius: 999, background: "#17B88B", color: "#052e1c", fontSize: 12, fontWeight: 700 }}>Enabled</span>
+                  <span className="rounded-full text-ui-sm font-bold" style={{ padding: "4px 12px", color: "var(--color-success)", background: "color-mix(in srgb, var(--color-success) 14%, transparent)" }}>Enabled</span>
                 ) : (
-                  <span style={{ padding: "4px 12px", borderRadius: 999, background: "var(--color-bg-tertiary)", color: "var(--color-foreground-subtle)", fontSize: 12, fontWeight: 700 }}>Disabled</span>
+                  <span className="rounded-full text-ui-sm font-bold" style={{ padding: "4px 12px", background: "var(--color-bg-tertiary)", color: "var(--color-foreground-subtle)" }}>Disabled</span>
                 )}
                 <button className="ms-btn" onClick={toggleEnabled}>{selected.enabled ? "Disable" : "Enable"}</button>
                 <button className="ms-iconbtn" style={{ marginLeft: "auto", color: "var(--color-danger)" }} title="Delete provider" onClick={deleteProvider}><TrashIcon size={14} /></button>
@@ -245,7 +245,7 @@ export function ModelSettings() {
               <div>
                 <div className="ms-label">API key</div>
                 <div style={{ position: "relative" }}>
-                  <input className="ms-input" style={{ paddingRight: 36, fontFamily: "monospace" }} type={showKey ? "text" : "password"} value={selected.apiKey} onChange={e => updateSelected({ apiKey: e.target.value })} placeholder="sk-..." />
+                  <input className="ms-input font-mono" style={{ paddingRight: 36 }} type={showKey ? "text" : "password"} value={selected.apiKey} onChange={e => updateSelected({ apiKey: e.target.value })} placeholder="sk-..." />
                   <button className="ms-iconbtn" style={{ position: "absolute", right: 6, top: 8 }} onClick={() => setShowKey(v => !v)}>{showKey ? <EyeOffIcon size={14} /> : <EyeIcon size={14} />}</button>
                 </div>
               </div>
@@ -255,7 +255,7 @@ export function ModelSettings() {
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   {selected.modelList.map(m => (
                     <div key={m.id} className="ms-model-row">
-                      <span style={{ flex: 1, fontFamily: "monospace", fontSize: 13 }}>{m.id}</span>
+                      <span className="font-mono text-ui-caption" style={{ flex: 1 }}>{m.id}</span>
                       <span className="ms-badge">{formatContext(m.context)}</span>
                       {m.vision ? <span className="ms-badge">Vision</span> : null}
                       {m.video ? <span className="ms-badge">Video</span> : null}
@@ -278,12 +278,12 @@ export function ModelSettings() {
         <div className="ms-modal-backdrop" onClick={() => setDialog(null)}>
           <div className="ms-modal" onClick={e => e.stopPropagation()}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-              <span style={{ fontSize: 15, fontWeight: 700 }}>{dialog.mode === "add" ? "Add model" : "Edit model"}</span>
+              <span className="text-ui-lg font-bold">{dialog.mode === "add" ? "Add model" : "Edit model"}</span>
               <button className="ms-iconbtn" onClick={() => setDialog(null)}><XIcon size={14} /></button>
             </div>
 
             <div className="ms-label">Model ID</div>
-            <input className="ms-input" style={{ fontFamily: "monospace" }} autoFocus value={draft.id} placeholder="Model ID" onChange={e => setDraft({ ...draft, id: e.target.value })} />
+            <input className="ms-input font-mono" autoFocus value={draft.id} placeholder="Model ID" onChange={e => setDraft({ ...draft, id: e.target.value })} />
 
             <div className="ms-label">Context window</div>
             <input className="ms-input" type="number" value={draft.context} onChange={e => setDraft({ ...draft, context: Number(e.target.value) || 0 })} />

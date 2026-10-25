@@ -27,9 +27,23 @@ interface Point { x: number; y: number }
 interface Rect { x: number; y: number; w: number; h: number }
 interface Shape { tool: Tool; points: Point[]; rect?: Rect; label?: number; comment?: string; desc?: string }
 interface Popup { label: number; x: number; y: number; value: string }
+interface DrawColors { danger: string; fg: string; shadow: string }
 
-const COLOR = "#ff3b30";
 const UI_SELECTOR = ".feedback-toolbar, .feedback-bottom, .feedback-popup, .feedback-restore";
+
+/** Resolve a CSS colour token via a probe element — canvas cannot read var(). */
+function tokenColor(el: HTMLElement, token: string, fallback: string): string {
+  try {
+    const probe = document.createElement("span");
+    probe.style.color = `var(${token})`;
+    el.appendChild(probe);
+    const computed = getComputedStyle(probe).color;
+    probe.remove();
+    return computed || fallback;
+  } catch {
+    return fallback;
+  }
+}
 
 function describeEl(el: Element): string {
   const aria = el.getAttribute("aria-label") || el.getAttribute("title");
@@ -54,9 +68,9 @@ export function FeedbackOverlay({ onExit }: { onExit: () => void }) {
 
   const dpr = window.devicePixelRatio || 1;
 
-  const drawShape = useCallback((ctx: CanvasRenderingContext2D, s: Shape) => {
-    ctx.strokeStyle = COLOR;
-    ctx.fillStyle = COLOR;
+  const drawShape = useCallback((ctx: CanvasRenderingContext2D, s: Shape, colors: DrawColors) => {
+    ctx.strokeStyle = colors.danger;
+    ctx.fillStyle = colors.danger;
     ctx.lineWidth = 3;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
@@ -67,7 +81,7 @@ export function FeedbackOverlay({ onExit }: { onExit: () => void }) {
       ctx.beginPath();
       ctx.arc(bx + 10, by + 10, 10, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = "#fff";
+      ctx.fillStyle = colors.fg;
       ctx.font = "bold 12px system-ui, sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
@@ -79,9 +93,9 @@ export function FeedbackOverlay({ onExit }: { onExit: () => void }) {
         const text = s.comment.trim().slice(0, 80);
         const ty = s.rect.y + s.rect.h + 4;
         ctx.lineWidth = 4;
-        ctx.strokeStyle = "rgba(10,10,10,0.85)";
+        ctx.strokeStyle = colors.shadow;
         ctx.strokeText(text, s.rect.x + 2, ty);
-        ctx.fillStyle = COLOR;
+        ctx.fillStyle = colors.danger;
         ctx.fillText(text, s.rect.x + 2, ty);
       }
       return;
@@ -117,19 +131,26 @@ export function FeedbackOverlay({ onExit }: { onExit: () => void }) {
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
+    // Canvas cannot resolve var() — the annotation colours are read from the
+    // themed tokens through a probe element, as in TerminalPane.
+    const colors: DrawColors = {
+      danger: tokenColor(canvas, "--color-danger", "#ff3b30"),
+      fg: tokenColor(canvas, "--color-fg", "#ffffff"),
+      shadow: tokenColor(canvas, "--color-shadow", "rgba(10,10,10,0.85)"),
+    };
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    for (const s of shapes) drawShape(ctx, s);
+    for (const s of shapes) drawShape(ctx, s, colors);
     if (hover) {
       ctx.save();
       ctx.globalAlpha = 0.55;
-      ctx.strokeStyle = COLOR;
+      ctx.strokeStyle = colors.danger;
       ctx.lineWidth = 2;
       ctx.setLineDash([6, 4]);
       ctx.strokeRect(hover.x, hover.y, hover.w, hover.h);
       ctx.restore();
     }
-    if (current) drawShape(ctx, current);
+    if (current) drawShape(ctx, current, colors);
   }, [shapes, current, hover, drawShape, dpr]);
 
   useEffect(() => {

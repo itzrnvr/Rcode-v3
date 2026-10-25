@@ -55,7 +55,7 @@ export function InstructionsEditor() {
 
   return (
     <div>
-      <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Custom Instructions</h3>
+      <h3 className="text-ui-base font-semibold" style={{ marginBottom: 12 }}>Custom Instructions</h3>
 
       <div className="settings-row">
         <label>Global Instructions (all sessions)</label>
@@ -80,7 +80,7 @@ export function InstructionsEditor() {
       )}
 
       {!currentSessionId && (
-        <div style={{ color: "var(--color-foreground-subtle)", fontSize: 13, padding: 8 }}>
+        <div className="text-ui-caption" style={{ color: "var(--color-foreground-subtle)", padding: 8 }}>
           Select a session to edit its per-session instructions.
         </div>
       )}

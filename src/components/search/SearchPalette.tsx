@@ -102,103 +102,64 @@ export function SearchPalette({ open, onClose }: SearchPaletteProps) {
   return (
     <div
       onClick={onClose}
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,0.6)",
-        backdropFilter: "blur(8px)",
-        display: "flex",
-        alignItems: "flex-start",
-        justifyContent: "center",
-        paddingTop: "10vh",
-        zIndex: 100,
-      }}
+      className="fixed inset-0 z-[100] flex items-start justify-center bg-black/60 pt-[10vh] backdrop-blur-[8px]"
     >
       <div
         onClick={e => e.stopPropagation()}
-        style={{
-          width: 640,
-          maxHeight: "70vh",
-          background: "#1e1e1e",
-          border: "1px solid #262626",
-          borderRadius: 12,
-          overflow: "hidden",
-          boxShadow: "0 16px 48px rgba(0,0,0,0.6)",
-          display: "flex",
-          flexDirection: "column",
-        }}
+        className="flex max-h-[70vh] w-[640px] flex-col overflow-hidden rounded-xl border border-[var(--color-popover-border)] bg-[var(--color-popover)] shadow-[var(--shadow-lg)]"
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 16px", borderBottom: "1px solid #262626" }}>
-          <span style={{ color: "#8a8a8a", display: "flex" }}><SearchIcon size={16} /></span>
+        <div className="flex items-center gap-2.5 border-b border-[var(--color-border)] px-4 py-3.5">
+          <span className="flex text-[var(--color-foreground-subtle)]"><SearchIcon size={16} /></span>
           <input
             ref={inputRef}
             value={query}
             onChange={e => setQuery(e.target.value)}
             placeholder="Search chats"
-            style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: "#e8e8e8", fontSize: 15 }}
+            className="flex-1 rounded-sm border border-transparent bg-transparent text-ui-lg text-[var(--color-fg)] outline-none transition-colors duration-[var(--duration-fast)] ease-[var(--ease-out)] placeholder:text-[var(--color-foreground-subtlest)] focus-visible:border-[var(--color-input-border-focused)]"
           />
-          <span style={{ fontSize: 11, color: "#52525b", border: "1px solid #262626", borderRadius: 4, padding: "2px 6px" }}>ESC</span>
+          <span className="rounded-sm border border-[var(--color-border)] px-1.5 py-0.5 text-ui-xs text-[var(--color-foreground-subtlest)]">ESC</span>
         </div>
 
-        <div style={{ flex: 1, overflowY: "auto", padding: "8px 8px 12px" }}>
+        <div className="flex-1 overflow-y-auto px-2 pt-2 pb-3">
           {/* Chats */}
-          <div style={{ fontSize: 11, fontWeight: 600, color: "#8a8a8a", textTransform: "uppercase", letterSpacing: 0.6, padding: "8px 8px 4px" }}>Chats</div>
+          <div className="px-2 pt-2 pb-1 text-ui-xs font-semibold uppercase tracking-[0.6px] text-[var(--color-foreground-subtle)]">Chats</div>
           {filteredChats.length === 0 ? (
-            <div style={{ padding: "8px 12px", color: "#52525b", fontSize: 13 }}>No chats found</div>
+            <div className="px-3 py-2 text-ui-base text-[var(--color-foreground-subtlest)]">No chats found</div>
           ) : (
             filteredChats.map((s, idx) => (
               <button
                 key={s.id}
                 onClick={() => handleSelectChat(s.id)}
-                style={{
-                  width: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  padding: "9px 12px",
-                  borderRadius: 8,
-                  border: "none",
-                  background: "transparent",
-                  color: "#e8e8e8",
-                  textAlign: "left",
-                  cursor: "pointer",
-                  fontSize: 13,
-                }}
-                onMouseEnter={e => (e.currentTarget.style.background = "#262626")}
-                onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg bg-transparent px-3 py-[9px] text-left text-ui-base text-[var(--color-fg)] transition-colors duration-[var(--duration-fast)] ease-[var(--ease-out)] hover:bg-[var(--color-hover)]"
               >
-                <span style={{ opacity: 0.6, display: "flex" }}><MessageCircleIcon size={14} /></span>
-                <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.title}</span>
-                <span style={{ fontSize: 11, color: "#52525b", border: "1px solid #262626", borderRadius: 4, padding: "1px 5px" }}>Ctrl+{idx + 1}</span>
+                <span className="flex opacity-60"><MessageCircleIcon size={14} /></span>
+                <span className="flex-1 truncate">{s.title}</span>
+                <span className="rounded-sm border border-[var(--color-border)] px-[5px] py-px text-ui-xs text-[var(--color-foreground-subtlest)]">Ctrl+{idx + 1}</span>
               </button>
             ))
           )}
 
           {/* Quick actions */}
-          <div style={{ fontSize: 11, fontWeight: 600, color: "#8a8a8a", textTransform: "uppercase", letterSpacing: 0.6, padding: "12px 8px 4px" }}>Quick actions</div>
+          <div className="px-2 pt-3 pb-1 text-ui-xs font-semibold uppercase tracking-[0.6px] text-[var(--color-foreground-subtle)]">Quick actions</div>
           <button
             onClick={handleNewChat}
-            style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: 8, border: "none", background: "transparent", color: "#e8e8e8", textAlign: "left", cursor: "pointer", fontSize: 13 }}
-            onMouseEnter={e => (e.currentTarget.style.background = "#262626")}
-            onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+            className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg bg-transparent px-3 py-[9px] text-left text-ui-base text-[var(--color-fg)] transition-colors duration-[var(--duration-fast)] ease-[var(--ease-out)] hover:bg-[var(--color-hover)]"
           >
             <PlusIcon size={14} />
-            <span style={{ flex: 1 }}>New chat</span>
-            <span style={{ fontSize: 11, color: "#52525b", border: "1px solid #262626", borderRadius: 4, padding: "1px 5px" }}>Ctrl+N</span>
+            <span className="flex-1">New chat</span>
+            <span className="rounded-sm border border-[var(--color-border)] px-[5px] py-px text-ui-xs text-[var(--color-foreground-subtlest)]">Ctrl+N</span>
           </button>
           <button
             onClick={() => { window.dispatchEvent(new CustomEvent("open-folder")); onClose(); }}
-            style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: 8, border: "none", background: "transparent", color: "#e8e8e8", textAlign: "left", cursor: "pointer", fontSize: 13 }}
-            onMouseEnter={e => (e.currentTarget.style.background = "#262626")}
-            onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+            className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg bg-transparent px-3 py-[9px] text-left text-ui-base text-[var(--color-fg)] transition-colors duration-[var(--duration-fast)] ease-[var(--ease-out)] hover:bg-[var(--color-hover)]"
           >
             <FolderIcon size={14} />
-            <span style={{ flex: 1 }}>Open folder</span>
-            <span style={{ fontSize: 11, color: "#52525b", border: "1px solid #262626", borderRadius: 4, padding: "1px 5px" }}>Ctrl+O</span>
+            <span className="flex-1">Open folder</span>
+            <span className="rounded-sm border border-[var(--color-border)] px-[5px] py-px text-ui-xs text-[var(--color-foreground-subtlest)]">Ctrl+O</span>
           </button>
 
           {/* Slash commands */}
-          <div style={{ fontSize: 11, fontWeight: 600, color: "#8a8a8a", textTransform: "uppercase", letterSpacing: 0.6, padding: "12px 8px 4px" }}>Slash commands</div>
+          <div className="px-2 pt-3 pb-1 text-ui-xs font-semibold uppercase tracking-[0.6px] text-[var(--color-foreground-subtle)]">Slash commands</div>
           {[
             { cmd: "/side", desc: "Fork a side conversation (branch)", Icon: MessageCircleIcon },
             { cmd: "/compact", desc: "Summarize and compact", Icon: SparkleIcon },
@@ -210,18 +171,16 @@ export function SearchPalette({ open, onClose }: SearchPaletteProps) {
               <button
                 key={c.cmd}
                 onClick={() => handleSlash(c.cmd)}
-                style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: 8, border: "none", background: "transparent", color: "#e8e8e8", textAlign: "left", cursor: "pointer", fontSize: 13 }}
-                onMouseEnter={e => (e.currentTarget.style.background = "#262626")}
-                onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg bg-transparent px-3 py-[9px] text-left text-ui-base text-[var(--color-fg)] transition-colors duration-[var(--duration-fast)] ease-[var(--ease-out)] hover:bg-[var(--color-hover)]"
               >
                 <c.Icon size={14} />
-                <span style={{ flex: 1 }}>{c.cmd}</span>
-                <span style={{ fontSize: 12, color: "#8a8a8a" }}>{c.desc}</span>
+                <span className="flex-1">{c.cmd}</span>
+                <span className="text-ui-sm text-[var(--color-foreground-subtle)]">{c.desc}</span>
               </button>
             ))}
 
           {/* Settings shortcuts */}
-          <div style={{ fontSize: 11, fontWeight: 600, color: "#8a8a8a", textTransform: "uppercase", letterSpacing: 0.6, padding: "12px 8px 4px" }}>Settings</div>
+          <div className="px-2 pt-3 pb-1 text-ui-xs font-semibold uppercase tracking-[0.6px] text-[var(--color-foreground-subtle)]">Settings</div>
           {[
             { label: "API Settings", category: "api", Icon: SettingsIcon, action: () => { window.dispatchEvent(new CustomEvent("open-settings", { detail: { category: "api" } })); onClose(); } },
             { label: "Theme", category: "theme", Icon: SettingsIcon, action: () => { window.dispatchEvent(new CustomEvent("open-settings", { detail: { category: "theme" } })); onClose(); } },
@@ -232,9 +191,7 @@ export function SearchPalette({ open, onClose }: SearchPaletteProps) {
               <button
                 key={c.label}
                 onClick={c.action}
-                style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: 8, border: "none", background: "transparent", color: "#e8e8e8", textAlign: "left", cursor: "pointer", fontSize: 13 }}
-                onMouseEnter={e => (e.currentTarget.style.background = "#262626")}
-                onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg bg-transparent px-3 py-[9px] text-left text-ui-base text-[var(--color-fg)] transition-colors duration-[var(--duration-fast)] ease-[var(--ease-out)] hover:bg-[var(--color-hover)]"
               >
                 <c.Icon size={14} />
                 <span>{c.label}</span>
@@ -242,7 +199,7 @@ export function SearchPalette({ open, onClose }: SearchPaletteProps) {
             ))}
 
           {/* New tabs - from the left in sidepanel */}
-          <div style={{ fontSize: 11, fontWeight: 600, color: "#8a8a8a", textTransform: "uppercase", letterSpacing: 0.6, padding: "12px 8px 4px" }}>New tabs</div>
+          <div className="px-2 pt-3 pb-1 text-ui-xs font-semibold uppercase tracking-[0.6px] text-[var(--color-foreground-subtle)]">New tabs</div>
           {[
             { type: "terminal" as const, label: "Terminal", Icon: TerminalSquareIcon },
             { type: "side-conversation" as const, label: "Side conversation", Icon: MessageCircleIcon },
@@ -254,13 +211,11 @@ export function SearchPalette({ open, onClose }: SearchPaletteProps) {
               <button
                 key={c.type}
                 onClick={() => handleNewTab(c.type)}
-                style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: 8, border: "none", background: "transparent", color: "#e8e8e8", textAlign: "left", cursor: "pointer", fontSize: 13 }}
-                onMouseEnter={e => (e.currentTarget.style.background = "#262626")}
-                onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg bg-transparent px-3 py-[9px] text-left text-ui-base text-[var(--color-fg)] transition-colors duration-[var(--duration-fast)] ease-[var(--ease-out)] hover:bg-[var(--color-hover)]"
               >
                 <c.Icon size={14} />
                 <span>{c.label}</span>
-                <span style={{ marginLeft: "auto", fontSize: 11, color: "#52525b" }}>sidepanel</span>
+                <span className="ml-auto text-ui-xs text-[var(--color-foreground-subtlest)]">sidepanel</span>
               </button>
             ))}
         </div>

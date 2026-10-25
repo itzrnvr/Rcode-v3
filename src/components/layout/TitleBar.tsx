@@ -35,7 +35,7 @@ export function TitleBar({ onToggleSidebar, onToggleSidePanel, onToggleFeedback 
         </button>
 
         <div className="titlebar-logo">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true" style={{filter: 'drop-shadow(0 0 7px color-mix(in srgb, currentColor 38%, transparent))'}}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
             <g strokeLinecap="square" strokeLinejoin="miter">
               {/* Left half — formal straight stem with serif */}
               <path d="M7 3.8 V20.2" strokeWidth="2.8" strokeLinecap="square" />
