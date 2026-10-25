@@ -1051,8 +1051,14 @@
 }
 
 /* --- Accent utilities --- */
-.text-accent { color: var(--color-accent); }
-.bg-accent { background-color: var(--color-accent); }
+/* The accent has TWO meanings in this codebase and they must not share a
+   class name. Tailwind's own bg-accent is shadcn's muted SURFACE - the fill a
+   menu row takes on hover - and the vendored components rely on that. These
+   two rules used to claim the same names and force the brand colour instead,
+   so every dropdown item and menu row hovered blue. The brand colour is
+   asked for explicitly now. */
+.text-brand { color: var(--color-accent); }
+.bg-brand { background-color: var(--color-accent); }
 
 /* ============================================================
    Radix UI primitives — accessible focus, animations, slots

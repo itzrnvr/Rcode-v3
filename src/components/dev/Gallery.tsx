@@ -296,7 +296,7 @@ function ContrastTable() {
                   className={
                     "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-ui-xs font-medium " +
                     (r.verdict === "AA"
-                      ? "bg-accent-soft text-accent"
+                      ? "bg-[var(--color-accent-soft)] text-brand"
                       : "bg-danger-soft text-danger")
                   }
                 >
@@ -409,7 +409,7 @@ function Swatch({
         key={copied ? "copied" : "value"}
         className={
           "ml-auto shrink-0 truncate font-mono text-ui-xs " +
-          (copied ? "text-accent" : "text-foreground-subtlest")
+          (copied ? "text-brand" : "text-foreground-subtlest")
         }
       >
         {copied ? "copied" : resolved}
@@ -550,7 +550,7 @@ function Foundations({ copied, onCopy }: { copied: string | null; onCopy: (token
               <div className="mt-0.5 text-ui-xs text-foreground-subtlest">{use}</div>
               <div className="mt-2 h-1.5 overflow-hidden rounded-pill bg-hover">
                 <div
-                  className="h-full w-1/3 rounded-pill bg-accent"
+                  className="h-full w-1/3 rounded-pill bg-brand"
                   style={{ transitionDuration: `var(--duration-${name})` }}
                 />
               </div>

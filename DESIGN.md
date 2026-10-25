@@ -188,6 +188,12 @@ in a diff must not be the green that means "healthy" on a badge.
 - Use text hierarchy before adding borders or colours.
 - Pair a status colour with readable text. Never colour alone.
 
+**The accent has two meanings and they must not share a class name.**
+`bg-accent` is shadcn's muted *surface* — the fill a menu row takes on
+hover — and the vendored components rely on that. The *brand* colour is
+`text-brand` / `bg-brand`. Two rules claiming `text-accent` and `bg-accent`
+made every dropdown item and menu row hover brand-blue.
+
 ### Themes
 
 Rcode ships two languages, and each is a full set — palette, radius ladder,
