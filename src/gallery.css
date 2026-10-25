@@ -19,3 +19,396 @@ body,
   height: auto;
   overflow: visible;
 }
+
+/*
+ * App shell preview — structural CSS for the shell mock in the gallery's
+ * "App shell" section (src/components/dev/AppShellPreview.tsx), ported from
+ * the retired oneui.html prototype page. Every selector is scoped under
+ * .shell-preview so nothing here can reach the rest of the gallery; the
+ * keyframes are referenced only from these rules, so they stay inert
+ * elsewhere.
+ *
+ * .oui-branch is not ported: index.css already carries it document-wide for
+ * the real SessionList, which this mock mirrors — a second copy here would
+ * only drift from the app's.
+ */
+
+/* Two shell columns, dark beside light — dark is the primary presentation and
+   sits left. The shell holds three panes (sidebar + chat + side panel), which
+   needs ~920px per column, so the columns stack below 1920px: a narrow window
+   gets both themes in full instead of a three-pane shell squeezed past its
+   smallest workable chat column. */
+.shell-preview .oui-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  align-items: start;
+}
+@media (max-width: 1919px) {
+  .shell-preview .oui-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* The shell frame: a rounded device-like container holding sidebar + chat. */
+.shell-preview .oui-shell-frame {
+  display: flex;
+  height: 920px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  background: var(--color-bg);
+  box-shadow: var(--shadow-lg);
+  line-height: 1.55;
+}
+
+/*
+ * The left drawer (.oui-sidebar) collapses to width 0 rather than unmounting:
+ * the width transition is the One UI panel motion (--duration-panel, plain
+ * decel), while the fixed-width .oui-sidebar-inner keeps the content from
+ * reflowing during the animation. visibility flips after the collapse finishes
+ * (delayed transition) so the panel stays visible while it slides out, and on
+ * the way back it flips immediately — hidden also removes the content from the
+ * a11y tree and tab order, so a closed drawer has no reachable controls. The
+ * global prefers-reduced-motion guard in index.css flattens the width motion.
+ */
+.shell-preview .oui-sidebar {
+  width: 236px;
+  flex-shrink: 0;
+  overflow: hidden;
+  background: var(--color-sidebar);
+  border-right: 1px solid var(--color-border);
+  min-height: 0;
+  transition:
+    width var(--duration-panel) var(--ease-out),
+    border-right-width var(--duration-panel) var(--ease-out),
+    visibility 0s;
+}
+
+.shell-preview .oui-sidebar[data-collapsed="true"] {
+  width: 0;
+  border-right-width: 0;
+  visibility: hidden;
+  transition:
+    width var(--duration-panel) var(--ease-out),
+    border-right-width var(--duration-panel) var(--ease-out),
+    visibility 0s var(--duration-panel);
+}
+
+.shell-preview .oui-sidebar-inner {
+  display: flex;
+  flex-direction: column;
+  width: 236px;
+  height: 100%;
+  min-height: 0;
+}
+
+.shell-preview .oui-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.shell-preview .oui-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* One UI entrances: rise with a slight scale on the overshoot curve. The
+   global prefers-reduced-motion guard in index.css flattens these to
+   0.01ms, so it keeps working unchanged. */
+@keyframes oui-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.shell-preview .oui-rise {
+  animation: oui-rise 450ms var(--ease-spring, cubic-bezier(0.34, 1.56, 0.64, 1)) backwards;
+}
+
+/* Chat bubbles: One UI trims one corner toward the speaker. */
+.shell-preview .oui-bubble-user {
+  border-radius: var(--radius-xl) var(--radius-xl) var(--radius-sm) var(--radius-xl);
+}
+.shell-preview .oui-bubble-assistant {
+  border-radius: var(--radius-sm) var(--radius-xl) var(--radius-xl) var(--radius-xl);
+}
+
+/* Hairline list separators, One UI settings style. */
+.shell-preview .oui-row-sep + .oui-row-sep {
+  border-top: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+}
+
+/*
+ * The quiet tool line (.oui-tool) — Base UI Collapsible states drive the
+ * mechanics that Tailwind classes cannot express: the panel grows via the
+ * library-measured --collapsible-panel-height instead of snapping, and the
+ * chevron turns with it. Both ride --duration-fast/--ease-out so the motion
+ * matches the One UI tokens, and the global prefers-reduced-motion guard in
+ * index.css (transition-duration 0.01ms) flattens them without change here.
+ * Rule order matters: the starting/ending overrides sit after [data-open] so
+ * the enter starts from 0 and the exit returns to it.
+ */
+.shell-preview .oui-tool [data-slot="collapsible-content"] {
+  height: 0;
+  overflow: hidden;
+  transition: height var(--duration-fast) var(--ease-out);
+}
+.shell-preview .oui-tool [data-slot="collapsible-content"][data-open] {
+  height: var(--collapsible-panel-height);
+}
+.shell-preview .oui-tool [data-slot="collapsible-content"][data-starting-style],
+.shell-preview .oui-tool [data-slot="collapsible-content"][data-ending-style] {
+  height: 0;
+}
+.shell-preview .oui-tool .oui-tool-chevron {
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+.shell-preview .oui-tool[data-open] .oui-tool-chevron {
+  transform: rotate(180deg);
+}
+
+/*
+ * The right side panel (.oui-sidepanel). Same visual language as the left
+ * drawer: --color-sidebar surface, one hairline, flush into the shell frame's
+ * radius, and the identical collapse — width to 0 on --duration-panel, content
+ * held at fixed width so nothing reflows mid-animation, visibility flipping
+ * after the collapse (delayed) and immediately on the way back, so a closed
+ * panel leaves the tab order and a11y tree. The global
+ * prefers-reduced-motion guard flattens the width motion.
+ */
+.shell-preview .oui-sidepanel {
+  width: 312px;
+  flex-shrink: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--color-sidebar);
+  border-left: 1px solid var(--color-border);
+  transition:
+    width var(--duration-panel) var(--ease-out),
+    border-left-width var(--duration-panel) var(--ease-out),
+    visibility 0s;
+}
+
+.shell-preview .oui-sidepanel[data-collapsed="true"] {
+  width: 0;
+  border-left-width: 0;
+  visibility: hidden;
+  transition:
+    width var(--duration-panel) var(--ease-out),
+    border-left-width var(--duration-panel) var(--ease-out),
+    visibility 0s var(--duration-panel);
+}
+
+.shell-preview .oui-sidepanel-inner {
+  display: flex;
+  flex-direction: column;
+  width: 312px;
+  height: 100%;
+  min-height: 0;
+}
+
+/* Tab strip toolbar. */
+.shell-preview .oui-sp-toolbar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  min-height: 56px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* Scrollable pill rail. Scrollbar hidden (wheel, drag and keyboard scroll
+   still work); edge fades appear only on the sides that actually have
+   overflow, driven by data attributes from the component. */
+.shell-preview .oui-sp-rail {
+  display: flex;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 2px;
+  margin: -2px;
+  scroll-padding-inline: 4px;
+}
+.shell-preview .oui-sp-rail::-webkit-scrollbar {
+  display: none;
+}
+.shell-preview .oui-sp-rail[data-fade-left] {
+  mask-image: linear-gradient(to right, transparent, #000 14px);
+}
+.shell-preview .oui-sp-rail[data-fade-right] {
+  mask-image: linear-gradient(to left, transparent, #000 14px);
+}
+.shell-preview .oui-sp-rail[data-fade-left][data-fade-right] {
+  mask-image: linear-gradient(to right, transparent, #000 14px, #000 calc(100% - 14px), transparent);
+}
+
+.shell-preview .oui-sp-pill {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+  max-width: 150px;
+  min-height: 36px;
+  padding: 0 4px 0 11px;
+  border-radius: 999px;
+  color: var(--color-foreground-subtle);
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+.shell-preview .oui-sp-pill:hover {
+  background: var(--color-hover);
+}
+.shell-preview .oui-sp-pill[data-active] {
+  background: var(--color-selected);
+  color: var(--color-fg);
+}
+.shell-preview .oui-sp-pill-open {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.shell-preview .oui-sp-pill-open > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.shell-preview .oui-sp-pill-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  opacity: 0.55;
+  cursor: pointer;
+  transition:
+    opacity var(--duration-fast) var(--ease-out),
+    background-color var(--duration-fast) var(--ease-out);
+}
+.shell-preview .oui-sp-pill-close:hover {
+  opacity: 1;
+  background: var(--color-active);
+}
+
+/* One UI menu: quiet rounded surface, 44px rows, no heavy chrome. Anchored
+   variants sit inside the relative toolbar. */
+.shell-preview .oui-sp-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  z-index: 70;
+  display: flex;
+  flex-direction: column;
+  width: min(300px, calc(100% - 12px));
+  max-height: min(480px, 70vh);
+  padding: 6px;
+  overflow-y: auto;
+  border: 1px solid var(--color-popover-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-menu);
+  box-shadow: var(--shadow-md);
+  animation: oui-menu-in var(--duration-fast) var(--ease-out) backwards;
+}
+.shell-preview .oui-sp-menu-right {
+  right: 10px;
+}
+.shell-preview .oui-sp-menu-fill {
+  left: 10px;
+  right: 10px;
+  width: auto;
+}
+.shell-preview .oui-sp-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-fg);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-out);
+}
+.shell-preview .oui-sp-menu-item:hover {
+  background: var(--color-menu-hover);
+}
+.shell-preview .oui-sp-menu-item > svg {
+  flex-shrink: 0;
+  color: var(--color-foreground-subtle);
+}
+
+@keyframes oui-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Pane swap: a short fade-and-settle, replayed per active tab. The global
+   reduced-motion guard flattens it. */
+@keyframes oui-sp-pane-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.shell-preview .oui-sp-pane {
+  animation: oui-sp-pane-in var(--duration-fast) var(--ease-out) backwards;
+}
+
+/*
+ * Swatch checkerboard for the colour section. Derived from the theme's own
+ * tokens — two steps of the foreground ramp composited over the page ground —
+ * instead of hard-coded greys, so a translucent swatch stays legible if the
+ * gallery is ever shown in light mode rather than sitting on a checkerboard
+ * the theme never painted.
+ */
+.gallery-checker {
+  --checker-a: color-mix(in srgb, var(--color-fg) 18%, var(--color-bg));
+  --checker-b: color-mix(in srgb, var(--color-fg) 8%, var(--color-bg));
+  background-image: conic-gradient(
+    var(--checker-a) 25%,
+    var(--checker-b) 0 50%,
+    var(--checker-a) 0 75%,
+    var(--checker-b) 0
+  );
+  background-size: 8px 8px;
+}

@@ -21,7 +21,6 @@ export default defineConfig({
         main: resolve(__dirname, "index.html"),
         preview: resolve(__dirname, "preview.html"),
         gallery: resolve(__dirname, "gallery.html"),
-        oneui: resolve(__dirname, "oneui.html"),
       },
     },
   },

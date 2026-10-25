@@ -1,25 +1,29 @@
 /*
- * One UI prototype — the Rcode app shell restyled in Samsung's One UI 6/7
- * design language, rendered in isolation with mock data: no backend, no app
- * state, no window.electron. Anything here that needed the Electron bridge to
- * mount would be a defect, same rule as the component gallery.
+ * App shell preview — the Rcode shell in the One UI design language, rendered
+ * in isolation with mock data: no backend, no app state, no window.electron.
+ * Anything here that needed the Electron bridge to mount would be a defect,
+ * same rule as the rest of the gallery.
  *
- * Dark is the primary presentation: the document itself mounts under .one-ui
- * (set on <html> in oneui.html) so the page chrome speaks the dark palette,
- * and the light shell renders beside it as the comparison column. Real
- * primitives from src/components/ui carry the design language; the shell
+ * Dark is the primary presentation, and each column carries its own scope
+ * class — .one-ui for dark, .one-ui-light over it for light — so the light
+ * shell renders beside the dark one as the comparison column and the two
+ * palettes cannot interfere. The light variant has no other home in the
+ * gallery.
+ *
+ * Real primitives from src/components/ui carry the design language; the shell
  * chrome (sidebar, composer, picker, side panel) is composed from those
  * primitives at One UI's geometry — 48px targets, the 8/12/16/24 radius ladder,
  * 15px body type on a 1.55 line height, spring entrances. The side panel
  * mirrors the real SidePanel's capabilities — pill tab rail with side chats
  * beside terminal / review / browser / trajectory tabs, new-tab picker, tab
  * manager with search + recently closed, per-tab close, collapse — in the same
- * language.
+ * language. The structural CSS for the oui-* classes lives in gallery.css,
+ * scoped under .shell-preview.
  *
  * The contrast tables are measured from the live stylesheet the same way the
- * gallery measures them (probe element, composited colour, WCAG ratio), but
- * per column: One UI's translucent foreground steps are exactly the kind of
- * token that reads fine in one theme and fails in the other.
+ * gallery's foundations table is (probe element, composited colour, WCAG
+ * ratio), but per column: One UI's translucent foreground steps are exactly
+ * the kind of token that reads fine in one theme and fails in the other.
  */
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
@@ -706,7 +710,7 @@ function EmptyState() {
  * user whether the tool actually did anything. No card, no border, no
  * elevation, radius-sm; muted colour at every step. The mechanics (tool name,
  * input, raw output) hide behind the line in a low-contrast inset that grows
- * in place via the Base UI collapsible states styled in oneui.css.
+ * in place via the Base UI collapsible states styled in gallery.css.
  *
  * Anything the user should actually *read* — a diff, a file list, output that
  * matters — is not trapped here at all: it renders as normal assistant content
@@ -1359,8 +1363,8 @@ const REVIEW_SUMMARY = { branch: "main", ahead: 2, plus: 302, minus: 15 };
 const REVIEW_FILES: Array<{ status: "M" | "A" | "U"; path: string; plus: number; minus: number }> = [
   { status: "M", path: "src/components/layout/AppShell.tsx", plus: 18, minus: 4 },
   { status: "M", path: "src/index.css", plus: 64, minus: 11 },
-  { status: "A", path: "src/oneui.css", plus: 194, minus: 0 },
-  { status: "U", path: "oneui.html", plus: 26, minus: 0 },
+  { status: "A", path: "src/components/dev/AppShellPreview.tsx", plus: 194, minus: 0 },
+  { status: "U", path: "src/gallery.css", plus: 26, minus: 0 },
 ];
 
 const REVIEW_STATUS_COLOR: Record<(typeof REVIEW_FILES)[number]["status"], string> = {
@@ -2195,7 +2199,15 @@ function ShellFrame({ mode }: { mode: "light" | "dark" }) {
   );
 }
 
-/* --- page -------------------------------------------------------------------- */
+/* --- section ------------------------------------------------------------------
+ *
+ * The gallery section content. The prototype page's header — title, the
+ * "prototype · not shipped" badge, the hard-coded token chips — is retired
+ * with the page: the shell is the real app now, and the numbers the chips
+ * printed are the foundations sections' job, measured live from the
+ * stylesheet rather than listed here where they would rot. What remains is
+ * the shell in both themes, then the per-column contrast tables.
+ */
 
 function ContrastPanel({
   scopeClass,
@@ -2224,54 +2236,17 @@ function ContrastPanel({
   );
 }
 
-export default function OneUIDemo() {
+export default function AppShellPreview() {
   return (
-    <div className="oui-page min-h-dvh text-[var(--color-fg)]">
-      <header className="mb-7 max-w-[900px]">
-        <div className="mb-2 flex items-center gap-3">
-          <h1 className="text-ui-xl font-semibold tracking-tight text-[var(--color-fg)]">
-            One UI — Rcode app shell prototype
-          </h1>
-          <span className="rounded-full border border-[var(--color-border)] px-2.5 py-1 text-ui-xs font-medium text-[var(--color-foreground-subtle)]">
-            prototype · not shipped
-          </span>
-        </div>
-        <p className="text-ui-sm leading-relaxed text-[var(--color-foreground-subtle)]">
-          The Rcode app shell restyled with Samsung One UI 6/7 as the design
-          language. Dark is the primary presentation; the light variant renders
-          beside it as the comparison. Mock data only — no backend, no Electron
-          bridge. The tokens live in one removable block at the end of{" "}
-          <code className="rounded bg-[var(--color-hover)] px-1 py-0.5 font-mono text-ui-xs text-[var(--color-fg)]">
-            src/index.css
-          </code>
-          ; selecting <strong className="font-semibold text-[var(--color-fg)]">One UI (Samsung)</strong> in
-          Settings → Theme applies the same preset to the running app.
-        </p>
-        <div className="mt-3 flex flex-wrap gap-2 text-ui-xs text-[var(--color-foreground-subtle)]">
-          {[
-            "radius 8 / 12 / 16 / 24",
-            "touch targets 44–48px",
-            "type 15px · line-height 1.55",
-            "motion 200 / 300 / 450ms · spring",
-            "accent #0064ff light · #4d8dff dark",
-          ].map(v => (
-            <span key={v} className="rounded-full border border-[var(--color-border)] px-3 py-1.5">
-              {v}
-            </span>
-          ))}
-        </div>
-      </header>
-
+    <div className="shell-preview p-4">
       <div className="oui-grid">
         <ShellFrame mode="dark" />
         <ShellFrame mode="light" />
       </div>
 
-      <section className="mt-10">
-        <h2 className="mb-1 text-ui-lg font-semibold text-[var(--color-fg)]">
-          Measured contrast
-        </h2>
-        <p className="mb-4 max-w-[720px] text-ui-sm text-[var(--color-foreground-subtle)]">
+      <section className="mt-8">
+        <h3 className="text-ui-lg font-semibold text-[var(--color-fg)]">Measured contrast</h3>
+        <p className="mb-4 mt-1 max-w-[720px] text-ui-sm text-[var(--color-foreground-subtle)]">
           Every text step resolved through the running stylesheet inside each
           column and composited over the surfaces it actually sits on. The
           floor is WCAG AA body text, 4.5:1 against both bg and surface —

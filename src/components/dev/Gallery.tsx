@@ -13,9 +13,10 @@
  * applies to colour: the accent is the primary-action fill, so it appears on
  * one button in a row, not on every control in the block.
  *
- * Nothing here is asserted. Contrast ratios are measured from the live
- * stylesheet at render time and the verdict is shown, so a token change that
- * breaks WCAG AA fails on screen instead of in a code review weeks later.
+ * Nothing here is asserted. Contrast is measured and durations, curves and
+ * radii are read from the live stylesheet at render time, so a token change
+ * that breaks WCAG AA or retimes a transition fails on screen instead of in a
+ * code review weeks later.
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -54,6 +55,7 @@ import {
   TraceTitle,
 } from "@/components/ui/trace";
 import { AgentTrace } from "@/components/chat/AgentTrace";
+import AppShellPreview from "@/components/dev/AppShellPreview";
 import type { AgentTurn, LiveStep } from "@/types";
 import { ButtonGroup, ButtonGroupSeparator, ButtonGroupText } from "@/components/ui/button-group";
 import {
@@ -68,6 +70,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverTrigger, PopoverContent, PopoverHeader, PopoverTitle, PopoverDescription } from "@/components/ui/popover";
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card";
 import {
   Select,
   SelectTrigger,
@@ -323,8 +326,13 @@ const SWATCH_GROUPS = [
   },
   {
     role: "Hover and active",
-    note: "Every hover surface comes from here. One value per file was the old default.",
-    tokens: ["--color-hover", "--color-menu-hover", "--color-active"],
+    note: "Every hover, active and selected fill comes from here. One value per file was the old default.",
+    tokens: ["--color-hover", "--color-menu-hover", "--color-active", "--color-selected"],
+  },
+  {
+    role: "Tab fills",
+    note: "Resting and active fills for a tab pill; the active one takes the page ground.",
+    tokens: ["--color-tab", "--color-tab-active"],
   },
   {
     role: "Text",
@@ -332,13 +340,34 @@ const SWATCH_GROUPS = [
   },
   {
     role: "Accent and status",
-    note: "Accent is the primary-action fill and stays sparse. Status colours are for real states.",
-    tokens: ["--color-accent", "--color-success", "--color-warning", "--color-danger"],
+    note: "Accent is the primary-action fill and stays sparse. Status colours are for real states, each with a soft translucent twin for fills.",
+    tokens: [
+      "--color-accent",
+      "--color-brand",
+      "--color-accent-tint",
+      "--color-success",
+      "--color-success-soft",
+      "--color-warning",
+      "--color-warning-soft",
+      "--color-danger",
+      "--color-danger-soft",
+    ],
   },
   {
     role: "Borders",
-    note: "Split by what they enclose: a card edge, a popover edge and an input edge are different surfaces.",
-    tokens: ["--color-border", "--color-card-border", "--color-popover-border", "--color-input-border"],
+    note: "Split by what they enclose: a card edge, a popover edge and an input edge are different surfaces, and a focused input takes the accent.",
+    tokens: [
+      "--color-border",
+      "--color-card-border",
+      "--color-popover-border",
+      "--color-input-border",
+      "--color-input-border-focused",
+    ],
+  },
+  {
+    role: "Overlay and data",
+    note: "The scrim dims the page behind dialogs and modals; the code and diff colours carry data, not chrome.",
+    tokens: ["--color-scrim", "--color-code-keyword", "--color-diff-added", "--color-diff-removed"],
   },
 ] as const;
 
@@ -365,16 +394,9 @@ function Swatch({
       className="group -mx-1.5 -my-1 flex min-w-0 items-center gap-2.5 rounded-md px-1.5 py-1 text-left transition-colors duration-(--duration-fast) hover:bg-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
     >
       <span className="relative size-6 shrink-0 rounded-md">
-        {/* Checkerboard so alpha colours stay legible as alpha. */}
-        <span
-          aria-hidden
-          className="absolute inset-0 rounded-md"
-          style={{
-            backgroundImage:
-              "conic-gradient(#3a3a3a 25%, #262626 0 50%, #3a3a3a 0 75%, #262626 0)",
-            backgroundSize: "8px 8px",
-          }}
-        />
+        {/* Checkerboard so alpha colours stay legible as alpha. The colours come
+            from .gallery-checker in gallery.css, mixed from the theme's tokens. */}
+        <span aria-hidden className="gallery-checker absolute inset-0 rounded-md" />
         <span
           className="absolute inset-0 rounded-md border border-border-hover"
           style={{ background: value ? `var(${token})` : "transparent" }}
@@ -399,6 +421,9 @@ function Swatch({
 /* --- foundations ---------------------------------------------------------- */
 
 function Foundations({ copied, onCopy }: { copied: string | null; onCopy: (token: string) => void }) {
+  // --ease-spring exists only under the One UI theme, so this one read decides
+  // whether the spring row renders at all.
+  const easeSpring = tokenValue("--ease-spring");
   return (
     <>
       <Spec
@@ -453,7 +478,7 @@ function Foundations({ copied, onCopy }: { copied: string | null; onCopy: (token
       <Spec
         id="elevation"
         title="Elevation"
-        note="DESIGN.md: restrained depth. Layer with background contrast and borders first; shadow is for overlays only, and there are exactly two levels."
+        note="DESIGN.md: restrained depth — layer with background contrast and borders first, and reach for shadow only for what floats. Three levels: the base surface carries no shadow, overlay takes shadow-md, attention takes shadow-lg."
       >
         <Row label="Levels">
           <div className="grid w-full gap-3 sm:grid-cols-3">
@@ -509,17 +534,18 @@ function Foundations({ copied, onCopy }: { copied: string | null; onCopy: (token
       <Spec
         id="motion"
         title="Motion"
-        note="Three durations and one deceleration curve. Overlays enter on the standard curve; exits are faster than entrances because leaving should never hold attention."
+        note="Four durations and the curves that drive them, read from the running stylesheet like the radius tokens above. Overlays enter on the standard curve; exits are faster than entrances because leaving should never hold attention."
       >
         <Row label="Durations">
           {[
-            ["fast", "120ms", "hover, press, colour"],
-            ["normal", "180ms", "reveal, panel, tooltip"],
-            ["slow", "280ms", "large surfaces, sheets"],
-          ].map(([name, ms, use]) => (
+            ["fast", "hover, press, colour"],
+            ["normal", "reveal, panel, tooltip"],
+            ["slow", "large surfaces, sheets"],
+            ["panel", "session drawer and side-panel width"],
+          ].map(([name, use]) => (
             <div key={name} className="w-40">
               <div className="font-mono text-ui-xs text-foreground">
-                {name} · {ms}
+                {name} · {tokenValue(`--duration-${name}`)}
               </div>
               <div className="mt-0.5 text-ui-xs text-foreground-subtlest">{use}</div>
               <div className="mt-2 h-1.5 overflow-hidden rounded-pill bg-hover">
@@ -534,10 +560,19 @@ function Foundations({ copied, onCopy }: { copied: string | null; onCopy: (token
         <Row label="Curve">
           <div className="w-full max-w-lg">
             <p className="text-ui-sm text-foreground-subtle">
-              <code className="font-mono text-ui-xs text-foreground">cubic-bezier(0.16, 1, 0.3, 1)</code>{" "}
-              — every transition in the app uses this. It starts fast and settles without overshoot,
-              which is what makes a tab indicator read as sliding rather than snapping.
+              <code className="font-mono text-ui-xs text-foreground">{tokenValue("--ease-out")}</code>{" "}
+              is the standard deceleration for hover, colour and reveal transitions. It starts fast
+              and settles without overshoot, which is what makes a tab indicator read as sliding
+              rather than snapping.
             </p>
+            {easeSpring ? (
+              <p className="mt-2 text-ui-sm text-foreground-subtle">
+                <code className="font-mono text-ui-xs text-foreground">--ease-spring</code>{" "}
+                <code className="font-mono text-ui-xs text-foreground">{easeSpring}</code> — entrances
+                spring onto this overshoot curve: dialogs, popovers and menus arrive on it, hovers
+                keep the plain decel. Only the One UI theme defines it.
+              </p>
+            ) : null}
           </div>
         </Row>
       </Spec>
@@ -549,7 +584,7 @@ function Foundations({ copied, onCopy }: { copied: string | null; onCopy: (token
       >
         <Row label="Scale">
           <div className="grid w-full gap-y-1">
-            {["xl", "lg", "base", "caption", "sm", "xs"].map(size => (
+            {["xl", "lg", "base", "caption", "sm", "xs", "2xs"].map(size => (
               <div key={size} className="flex items-baseline gap-4">
                 <span className="w-16 shrink-0 text-right font-mono text-ui-xs text-foreground-subtlest">
                   ui-{size}
@@ -798,7 +833,7 @@ function Components() {
       <Spec
         id="tabs"
         title="Tabs"
-        note="The indicator slides on the shared deceleration curve and the panel cross-fades, so switching reads as movement rather than a repaint."
+        note="Two list variants: line, whose indicator slides on the shared deceleration curve, and default, which marks the active tab with a filled pill. The panel cross-fades either way, so switching reads as movement rather than a repaint."
       >
         <Row label="Line">
           <Tabs defaultValue="one" className="w-full">
@@ -807,6 +842,24 @@ function Components() {
               <TabsTrigger value="two">Second</TabsTrigger>
               <TabsTrigger value="three">Third</TabsTrigger>
               <TabsIndicator />
+            </TabsList>
+            <TabsContent value="one" className="pt-4 text-ui-sm text-foreground-subtle">
+              First panel content.
+            </TabsContent>
+            <TabsContent value="two" className="pt-4 text-ui-sm text-foreground-subtle">
+              Second panel content.
+            </TabsContent>
+            <TabsContent value="three" className="pt-4 text-ui-sm text-foreground-subtle">
+              Third panel content.
+            </TabsContent>
+          </Tabs>
+        </Row>
+        <Row label="Default">
+          <Tabs defaultValue="one" className="w-full">
+            <TabsList variant="default" className="w-fit">
+              <TabsTrigger value="one">First</TabsTrigger>
+              <TabsTrigger value="two">Second</TabsTrigger>
+              <TabsTrigger value="three">Third</TabsTrigger>
             </TabsList>
             <TabsContent value="one" className="pt-4 text-ui-sm text-foreground-subtle">
               First panel content.
@@ -958,6 +1011,20 @@ function Components() {
               </div>
             </PopoverContent>
           </Popover>
+        </Row>
+        <Row label="Hover card">
+          <HoverCard>
+            <HoverCardTrigger render={<Button variant="outline" size="sm" />}>
+              Model details
+            </HoverCardTrigger>
+            <HoverCardContent className="w-64">
+              <p className="text-ui-sm font-medium text-foreground">Sonnet 4.5</p>
+              <p className="mt-1 text-ui-xs leading-relaxed text-foreground-subtle">
+                Richer than a tooltip: structured content that survives the pointer moving into it.
+                This is what the composer uses for model details.
+              </p>
+            </HoverCardContent>
+          </HoverCard>
         </Row>
         <Row label="Tooltip">
           <TooltipProvider>
@@ -1136,6 +1203,7 @@ const NAV = [
   ["identity", "Avatar"],
   ["feedback", "Feedback"],
   ["separator", "Separator"],
+  ["shell", "App shell"],
 ] as const;
 
 export default function Gallery() {
@@ -1202,12 +1270,29 @@ export default function Gallery() {
             <Foundations copied={copied} onCopy={copyToken} />
             <Components />
           </div>
-
-          <footer className="mt-16 border-t border-border pt-4 text-ui-xs text-foreground-subtlest">
-            Design authority: <span className="font-mono">DESIGN.md</span> (copied from
-            zai-org/ZCode, Apache-2.0).
-          </footer>
         </main>
+      </div>
+
+      {/* The shell section runs in its own full-width band: a three-pane shell
+          needs ~920px per column, so it cannot fit the max-w-6xl column the
+          rest of the gallery shares, and the sticky section nav ends with the
+          column it belongs to. */}
+      <div className="mx-auto max-w-[1872px] px-8 pb-14">
+        <Spec
+          id="shell"
+          title="App shell"
+          note="The Rcode shell composed from the primitives above in the One UI design language, dark beside light — the light variant has no other home. Mock data only: no backend, no Electron bridge. The side panel mirrors the real SidePanel, and the contrast tables are measured per column from the running stylesheet."
+        >
+          <AppShellPreview />
+        </Spec>
+      </div>
+
+      <div className="mx-auto max-w-6xl px-8 pb-14">
+        <footer className="border-t border-border pt-4 text-ui-xs text-foreground-subtlest">
+          Values are read live from the stylesheet's token layer in{" "}
+          <span className="font-mono">src/index.css</span>;{" "}
+          <span className="font-mono">DESIGN.md</span> is the rule the tokens implement.
+        </footer>
       </div>
     </div>
   );
