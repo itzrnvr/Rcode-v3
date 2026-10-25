@@ -18,6 +18,7 @@ import { useApp } from "./AppContext";
 
 import type { LiveStep, Message, ChatChunk } from "../types";
 import { appendReasoning, appendText, applyCanonicalBlocks } from "../lib/liveSteps";
+import { beginRunningTurn, endRunningTurn } from "./runningTurns";
 
 /** A message the reader sent while a turn was still running. */
 export interface QueuedMessage {
@@ -132,6 +133,7 @@ export function useChat(sessionId: string | null) {
   }, [beginTurn]);
 
   const endTurn = useCallback(async (sid: string, removeListener: () => void) => {
+    endRunningTurn(sid);
     removeListener();
     // The persisted messages are fetched BEFORE the streaming state is
     // cleared, so the streamed turn and the persisted one swap in a single
@@ -164,9 +166,13 @@ export function useChat(sessionId: string | null) {
     if (!sessionId || !text.trim()) return;
     const sid = sessionId;
     if (isStreamingRef.current) {
-      const temp: Message = { id: `temp-q-${Date.now()}`, sessionId: sid, role: "user", content: text, createdAt: Date.now() };
-      setMessages(prev => [...prev, temp]);
-      await (api as unknown as { queueMessage: (id: string, t: string) => Promise<{ queued: number }> }).queueMessage(sid, text);
+      // A turn is still running, so the message is held and sent when the
+      // turn ends. This used to call an api method that does not exist: it
+      // threw, and the message stayed on screen without ever being saved,
+      // so it vanished on the next reload.
+      const entry: QueuedMessage = { id: `queued-${Date.now()}`, text };
+      queuedRef.current = [...queuedRef.current, entry];
+      setQueuedMessages(queuedRef.current);
       return;
     }
 
@@ -180,6 +186,7 @@ export function useChat(sessionId: string | null) {
     setMessages(prev => [...prev, tempUserMsg]);
 
     const removeListener = api.onChatChunk(sid, handleChunk);
+    beginRunningTurn(sid);
     beginTurnForTarget(null);
     try {
       await api.sendChat({ sessionId: sid, userMessage: text, model: meta?.model ?? settings.model, mode: meta?.mode, reasoningEffort: meta?.reasoningEffort });
@@ -206,6 +213,7 @@ export function useChat(sessionId: string | null) {
     };
     setMessages(prev => [...prev, tempUserMsg]);
     const removeListener = api.onChatChunk(targetId, handleChunk);
+    beginRunningTurn(targetId);
     beginTurnForTarget(null);
     try {
       await api.sendChat({ sessionId: targetId, userMessage: text, model: meta?.model ?? settings.model, mode: meta?.mode, reasoningEffort: meta?.reasoningEffort });
@@ -227,6 +235,7 @@ export function useChat(sessionId: string | null) {
       ? messages.slice(anchorIndex + 1).find(message => message.role === "assistant")
       : undefined;
     const removeListener = api.onChatChunk(sid, handleChunk);
+    beginRunningTurn(sid);
     beginTurnForTarget(replacedTarget?.id ?? null);
     try {
       await api.resendChat({ sessionId: sid, anchorUserMessageId, model: meta?.model ?? settings.model });
@@ -248,6 +257,7 @@ export function useChat(sessionId: string | null) {
   // continue in the background until the upstream model finishes or times out;
   // we just hide it from the UI immediately so the user can keep typing.
   const stopStream = useCallback(() => {
+    if (sessionId) endRunningTurn(sessionId);
     setIsStreaming(false);
     setStreamingContent("");
     setStreamingReasoning("");

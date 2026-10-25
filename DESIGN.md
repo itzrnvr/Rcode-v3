@@ -472,6 +472,16 @@ Three panes: the session drawer, the conversation, and the side panel.
 - The titlebar, the drawer and the side panel each own one control for
   their own panel. Two controls for one panel, or one control for two
   panels, is a bug.
+- A session with a turn in flight says so in the drawer: a pulsing loader in
+  the row's reserved leading slot, which is empty at rest so the row never
+  changes size. The pulse is an opacity change, not a rotation — the
+  reduced-motion guard freezes every animation to a single instant, which
+  would leave a frozen half-arc that no longer reads as activity, while the
+  pulse settles into the plain loader glyph and still says "working".
+- The drawer is ordered by creation, not by activity, so a streaming turn
+  never moves a row under the reader. A drag reorders on drop only, an
+  aborted drag changes nothing, and a session the manual order does not know
+  yet keeps its server position rather than falling to the end.
 
 ## Responsive behaviour
 
