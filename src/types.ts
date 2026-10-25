@@ -78,10 +78,24 @@ export interface Theme {
   surface: string;
   sidebar: string;
   border: string;
+  /**
+   * The muted text colour, as a CSS colour value - usually a mix rather than
+   * a hex, because the text ladder is derived from the foreground so that it
+   * reads correctly on every surface it lands on. It is shown in the preset
+   * preview card but it is not editable: a colour picker for it would let
+   * somebody break the measured contrast ladder, which is exactly what the
+   * gallery's contrast table exists to police.
+   */
   muted: string;
   success: string;
   warning: string;
   danger: string;
+  /**
+   * The palette in light mode, for the presets that have one. One UI does;
+   * the monochrome family does not, because its light member is a preset of
+   * its own.
+   */
+  light?: Partial<Theme>;
   uiFont: string;
   codeFont: string;
   fontSizeScale: number;
@@ -153,7 +167,7 @@ export const THEME_PRESETS: Record<ThemePreset, Theme> = {
     surface: "#212121",
     sidebar: "#1F1F1F",
     border: "#303030",
-    muted: "#9B9B9B",
+    muted: "color-mix(in srgb, #ECECEC 70%, transparent)",
     success: "#17B88B",
     warning: "#FFD60A",
     danger: "#FF5C5C",
@@ -172,8 +186,8 @@ export const THEME_PRESETS: Record<ThemePreset, Theme> = {
     foreground: "#e5e5e5",
     surface: "#202020",
     sidebar: "#161616",
-    border: "#ffffff1a",
-    muted: "#a3a3a3",
+    border: "rgba(255, 255, 255, 0.1)",
+    muted: "color-mix(in srgb, #e5e5e5 70%, transparent)",
     success: "#17B88B",
     warning: "#FACC15",
     danger: "#dc2626",
@@ -193,7 +207,7 @@ export const THEME_PRESETS: Record<ThemePreset, Theme> = {
     surface: "#1E1E1E",
     sidebar: "#141414",
     border: "#2A2A2A",
-    muted: "#8A8A8A",
+    muted: "color-mix(in srgb, #E5E5E5 70%, transparent)",
     success: "#10B981",
     warning: "#F59E0B",
     danger: "#EF4444",
@@ -213,7 +227,7 @@ export const THEME_PRESETS: Record<ThemePreset, Theme> = {
     surface: "#F8F8F8",
     sidebar: "#F0F0F0",
     border: "#E5E5E5",
-    muted: "#6B7280",
+    muted: "color-mix(in srgb, #111111 70%, transparent)",
     success: "#059669",
     warning: "#D97706",
     danger: "#DC2626",
@@ -227,25 +241,40 @@ export const THEME_PRESETS: Record<ThemePreset, Theme> = {
   },
   "one-ui": {
     preset: "one-ui",
-    // One UI dark. The light variant is the same preset with darkMode: false —
-    // applyTheme writes data-mode="light" and the class block in index.css
-    // swaps the palette off that attribute.
+    // One UI dark. These values are the SAME as the [data-theme="one-ui"]
+    // block in index.css, and they have to stay the same: applyTheme writes
+    // them inline and the stylesheet writes them as the first-paint fallback,
+    // so if the two drift the app changes colour when it hydrates.
     accent: "#4d8dff",
     background: "#111318",
     foreground: "#e8eaf0",
     surface: "#1a1d23",
     sidebar: "#15181e",
     border: "rgba(232, 234, 240, 0.12)",
-    muted: "#9aa1ae",
+    muted: "color-mix(in srgb, #e8eaf0 65%, transparent)",
     success: "#3ddc84",
     warning: "#ffb300",
     danger: "#ff6b6b",
+    // The light variant of the same language. applyTheme writes these when
+    // darkMode is false, so the two stay in step with the class block.
+    light: {
+      accent: "#0064ff",
+      background: "#f2f3f5",
+      foreground: "#1b1f2a",
+      surface: "#ffffff",
+      sidebar: "#f7f8fa",
+      border: "rgba(27, 31, 42, 0.1)",
+      muted: "color-mix(in srgb, #1b1f2a 70%, transparent)",
+      success: "#1e8e3e",
+      warning: "#b26a00",
+      danger: "#d93025",
+    },
     uiFont: "Geist Variable, system-ui, -apple-system, 'Segoe UI', sans-serif",
     codeFont: "'Geist Mono Variable', 'JetBrains Mono', 'Cascadia Code', Menlo, Consolas, monospace",
     fontSizeScale: 1,
     // One UI's radius ladder is 8/12/16/24 — much rounder than Tailwind's
-    // 4/6/8/12 baseline. The class block pins the exact ladder; this radius
-    // only drives applyTheme's derived steps, which the block also overrides.
+    // 4/6/8/12 baseline. The ladder itself is derived from this number in
+    // the stylesheet, so the radius slider moves all four steps together.
     radius: 16,
     translucentSidebar: false,
     contrast: "medium",

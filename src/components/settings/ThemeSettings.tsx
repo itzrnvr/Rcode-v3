@@ -174,7 +174,10 @@ export function ThemeSettings() {
       <ColorRow label="Surface (cards)" value={theme.surface} onChange={v => handleChange("surface", v)} />
       <ColorRow label="Sidebar" value={theme.sidebar} onChange={v => handleChange("sidebar", v)} />
       <ColorRow label="Border" value={theme.border} onChange={v => handleChange("border", v)} />
-      <ColorRow label="Muted text" value={theme.muted} onChange={v => handleChange("muted", v)} />
+      {/* No muted-text picker. The muted step is derived from the foreground
+          so the text ladder stays on its measured contrast floor; a picker
+          for it would let somebody break that floor, which is what the
+          gallery's contrast table exists to police. */}
       <ColorRow label="Foreground" value={theme.foreground} onChange={v => handleChange("foreground", v)} />
 
       <h3 className="settings-h3">Typography</h3>

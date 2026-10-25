@@ -19,8 +19,6 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { applyTheme } from "@/lib/applyTheme";
-import { DEFAULT_THEME } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -1151,10 +1149,6 @@ export default function Gallery() {
     resetRef.current = window.setTimeout(() => setCopied(null), 1200);
   };
   useEffect(() => () => window.clearTimeout(resetRef.current), []);
-
-  // Same palette the app renders by default, applied as CSS variables only —
-  // no React state, no Electron bridge, so this page stays isolated.
-  applyTheme(DEFAULT_THEME);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
