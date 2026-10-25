@@ -21,7 +21,7 @@ import { DEFAULT_SETTINGS } from "../types";
 
 interface AppContextValue {
   currentSessionId: string | null;
-  setCurrentSessionId: (id: string | null) => void;
+  setCurrentSessionId: (id: string | null | ((prev: string | null) => string | null)) => void;
   settings: Settings;
   refreshSettings: () => Promise<void>;
   setSetting: (key: string, value: string) => Promise<void>;
