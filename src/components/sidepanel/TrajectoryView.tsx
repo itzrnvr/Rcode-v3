@@ -11,17 +11,20 @@
  *  - click a bar/row = focus select: dashed accent line across lanes, filled
  *    bullet, row scroll-into-view, inspector (Summary/Preview/Raw).
  *
- * Presentation: the prototype's trajectory pane is a quiet mono list — badges
- * as plain mono text steps, turn dividers as a neutral dot, no coloured role
- * pills. The lanes stay monochrome and differentiate by shape (ticks, thin
- * bars, wide bars); colour is reserved for real state (warning = tool call
- * with no result yet) and for selection (accent on the selected marks and the
- * focus line).
+ * Presentation: the event list is a flat, dense, chronological log in the
+ * DeepSeek-harness style — a thin connector rail with a dot per row on the
+ * far left, a filled uppercase role badge per row (fixed colour legend,
+ * defined once in trajectory.css and identical in every theme), hairline
+ * separators between rows, tool rows reading `name {args} → result` in mono,
+ * and turn boundaries as small muted "Turn N" badges in the flow, not cards.
+ * The timeline lanes stay monochrome and differentiate by shape (ticks, thin
+ * bars, wide bars); colour is reserved for the role legend, real state
+ * (warning = tool call with no result yet) and selection (accent).
  *
  * Data: JSONL trace via trace:list IPC, auto-refresh 3s.
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../../api/client";
 import {
   RefreshIcon,
@@ -33,6 +36,7 @@ import {
   ChevronDownIcon,
 } from "../common/Icons";
 import { cn } from "../../lib/utils";
+import "./trajectory.css";
 
 interface TraceEntry {
   ts: string;
@@ -54,6 +58,26 @@ const BADGE: Record<string, string> = {
   response: "MODEL",
   turn_end: "SYSTEM",
 };
+
+// Filled role pill; the colour lives in trajectory.css keyed off data-role,
+// so the legend stays in one place and never derives from the theme accent.
+function RoleBadge({ role }: { role: string }) {
+  return (
+    <span data-role={role.toLowerCase()} className="traj-badge">
+      {role}
+    </span>
+  );
+}
+
+// Turn boundary in the flow: a small muted marker, not a card.
+function TurnMarker({ turn }: { turn: number }) {
+  return (
+    <div className="traj-turnmark">
+      <span aria-hidden className="traj-railcell" />
+      <span className="traj-turnpill">Turn {turn}</span>
+    </div>
+  );
+}
 
 function fmtMs(ms: number): string {
   if (ms < 1000) return `${Math.round(ms)}ms`;
@@ -97,6 +121,8 @@ interface Row {
   e2?: TraceEntry;
   turnStart?: number;
   outcomeUnknown?: boolean;
+  argsText?: string;
+  resultText?: string;
 }
 
 const LABEL_GUTTER = 46; // px reserved for lane labels
@@ -148,25 +174,37 @@ export function TrajectoryView({ sessionId }: { sessionId: string | null }) {
       let text = "";
       let e2: TraceEntry | undefined;
       let outcomeUnknown = false;
+      let argsText: string | undefined;
+      let resultText: string | undefined;
       switch (e.kind) {
-        case "turn_start": text = `Turn ${e.turn} · ${e.model} · ${e.mode} · effort ${e.effort}`; break;
-        case "user": text = String(e.text ?? ""); break;
-        case "system": text = String(e.text ?? ""); break;
-        case "request": text = `request r${e.round} · ${(e.messages as unknown[])?.length ?? 0} messages`; break;
+        case "turn_start": text = [e.model, e.mode, e.effort != null ? `effort ${e.effort}` : ""].filter(Boolean).join(" · ") || "turn start"; break;
+        case "user": text = String(e.text ?? "") || "user message"; break;
+        case "system": text = String(e.text ?? "") || "system message"; break;
+        case "request": {
+          const msgs = (e.messages as unknown[])?.length ?? 0;
+          const tools = (e.toolNames as unknown[])?.length ?? 0;
+          text = `request r${e.round} · ${msgs} messages${tools > 0 ? ` · ${tools} tools` : ""}`;
+          break;
+        }
         case "response": text = `model r${e.round} · ${e.status} · TTFT ${e.firstChunkMs ?? "—"}ms · ${fmtMs(Number(e.totalMs ?? 0))}`; break;
         case "reasoning": text = String(e.text ?? ""); break;
         case "tool_call": {
           const res = entries.find(x => x.kind === "tool_result" && x.round === e.round && x.name === e.name);
           e2 = res;
           outcomeUnknown = !res;
-          text = `${e.name} ${JSON.stringify(e.args ?? {}).slice(0, 80)}${res ? ` → ${String(res.result ?? "").replace(/\n/g, " ").slice(0, 100)}` : ""}`;
+          // args may arrive as a JSON string or an object; normalise once.
+          const args = typeof e.args === "string" ? e.args : JSON.stringify(e.args ?? {});
+          const result = res ? String(res.result ?? "").replace(/\n/g, " ") : "";
+          argsText = args.slice(0, 160);
+          resultText = result.slice(0, 120);
+          text = `${e.name} ${args.slice(0, 80)}${res ? ` → ${result.slice(0, 100)}` : ""}`;
           break;
         }
         case "content": text = String(e.text ?? ""); break;
         case "turn_end": text = e.error ? `ended · ERROR ${e.error}` : `ended · ${e.secs}s`; break;
         default: text = e.kind;
       }
-      out.push({ key: key++, badge: BADGE[e.kind] ?? "SYSTEM", text, t: new Date(e.ts).getTime() - t0, e, e2, turnStart, outcomeUnknown });
+      out.push({ key: key++, badge: BADGE[e.kind] ?? "SYSTEM", text, t: new Date(e.ts).getTime() - t0, e, e2, turnStart, outcomeUnknown, argsText, resultText });
     }
     return out;
   }, [entries]);
@@ -323,12 +361,66 @@ export function TrajectoryView({ sessionId }: { sessionId: string | null }) {
     URL.revokeObjectURL(a.href);
   };
 
+  // One row renderer shared by the duration, turns and calls views so the
+  // three lists are pixel-identical: rail dot, role badge, content, chevron.
+  const renderRow = (r: Row) => (
+    <div
+      key={r.key}
+      data-rowkey={r.key}
+      onClick={() => select(r.key)}
+      className={cn("traj-row", selKey === r.key && "traj-row-sel")}
+    >
+      <span aria-hidden className="traj-railcell">
+        <i aria-hidden className={cn("traj-dot", selKey === r.key && "traj-dot-sel")} />
+      </span>
+      <RoleBadge role={r.badge} />
+      <div className="traj-content">
+        {r.e.kind === "tool_call" ? (
+          <span className="traj-toolline">
+            <span className="traj-toolname">{String(r.e.name ?? "")}</span>{" "}
+            <span className="traj-toolargs">{r.argsText ?? ""}</span>
+            {r.e2 ? (
+              <>
+                <span className="traj-arrow"> → </span>
+                <span className="traj-toolresult">
+                  {r.resultText}{(r.resultText?.length ?? 0) >= 120 ? "…" : ""}
+                </span>
+              </>
+            ) : (
+              <span className="traj-unknown"> TOOL_OUTCOME_UNKNOWN</span>
+            )}
+          </span>
+        ) : (
+          <span className="traj-text">{r.text}</span>
+        )}
+        {open.has(r.key) && (
+          <pre className="tool-result" style={{ maxHeight: 220, margin: "6px 0 4px", whiteSpace: "pre-wrap" }}>
+            {r.e.kind === "request"
+              ? JSON.stringify({ messages: r.e.messages, toolNames: r.e.toolNames }, null, 2)
+              : r.e.kind === "tool_call"
+                ? `args: ${JSON.stringify(r.e.args ?? {}, null, 2)}\n\nresult: ${String(r.e2?.result ?? "(none)")}`
+                : String(r.e.text ?? r.e.result ?? JSON.stringify(r.e, null, 2))}
+          </pre>
+        )}
+      </div>
+      <button
+        type="button"
+        aria-label={open.has(r.key) ? "Collapse details" : "Expand details"}
+        aria-expanded={open.has(r.key)}
+        onClick={e => { e.stopPropagation(); setOpen(prev => { const n = new Set(prev); if (n.has(r.key)) n.delete(r.key); else n.add(r.key); return n; }); }}
+        className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full text-[var(--color-foreground-subtlest)] transition-colors duration-[var(--duration-fast)] hover:bg-[var(--color-hover)] hover:text-[var(--color-fg)]"
+      >
+        <ChevronDownIcon size={13} className={cn("transition-transform duration-[var(--duration-fast)]", open.has(r.key) && "rotate-180")} />
+      </button>
+    </div>
+  );
+
   if (!sessionId) return <div className="p-5 text-ui-xs text-[var(--color-foreground-subtlest)]">Open a session to see its trajectory.</div>;
 
   const activeRange = draft ? { a: Math.min(draft.a, draft.b), b: Math.max(draft.a, draft.b) } : range;
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col">
+    <div className="traj relative flex min-h-0 flex-1 flex-col">
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-1.5 border-b border-[var(--color-border)] px-2 py-1.5">
         {(["duration", "turns", "calls"] as const).map(v => (
@@ -456,94 +548,35 @@ export function TrajectoryView({ sessionId }: { sessionId: string | null }) {
         </div>
       )}
 
-      {/* Event list */}
+      {/* Event list — flat dense chronological log; one renderer, three views */}
       <div ref={listRef} className="min-h-0 flex-1 overflow-y-auto px-1.5 py-1.5">
         {rows.length === 0 && <div className="p-3 text-ui-xs text-[var(--color-foreground-subtlest)]">No trace yet — send a message to start recording.</div>}
         {rows.length > 0 && filtered.length === 0 && <div className="p-3 text-ui-xs text-[var(--color-foreground-subtlest)]">No events in the selected range.</div>}
 
-        {view !== "turns" && filtered.map(r => (
-          <div key={r.key}>
-            {r.turnStart != null && (
-              <div className="flex items-center gap-2 pb-1 pt-2.5">
-                <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-[var(--color-foreground-subtle)]" />
-                <span className="text-ui-xs font-semibold text-[var(--color-fg)]">Turn {r.turnStart}</span>
-              </div>
-            )}
-            <div
-              data-rowkey={r.key}
-              onClick={() => select(r.key)}
-              className={cn(
-                "flex cursor-pointer items-start gap-2 rounded-[var(--radius-sm)] px-1 py-1",
-                selKey === r.key && "bg-[var(--color-selected)]",
-              )}
-            >
-              <span
-                aria-hidden
-                className={cn(
-                  "mt-1.5 size-[7px] shrink-0 rounded-full",
-                  selKey === r.key
-                    ? "bg-[var(--color-accent)]"
-                    : "border-[1.5px] border-[var(--color-foreground-subtlest)]",
-                )}
-              />
-              <span className="w-16 shrink-0 pt-0.5 text-center font-mono text-[9px] font-bold uppercase tracking-wide text-[var(--color-foreground-subtlest)]">
-                {r.badge}
-              </span>
-              <div className="min-w-0 flex-1">
-                {r.e.kind === "tool_call" ? (
-                  <span className="block truncate font-mono text-ui-xs text-[var(--color-foreground-subtle)]">
-                    {String(r.e.name ?? "")} <span className="text-[var(--color-foreground-subtlest)]">{JSON.stringify(r.e.args ?? {}).slice(0, 60)}</span>
-                    {r.e2
-                      ? <span> → <span>{String(r.e2.result ?? "").replace(/\n/g, " ").slice(0, 90)}…</span></span>
-                      : <span className="text-[var(--color-warning)]"> TOOL_OUTCOME_UNKNOWN</span>}
-                  </span>
-                ) : (
-                  <span className="line-clamp-2 text-ui-xs text-[var(--color-foreground-subtle)]">{r.text}</span>
-                )}
-                {open.has(r.key) && (
-                  <pre className="tool-result" style={{ maxHeight: 220, margin: "6px 0 4px", whiteSpace: "pre-wrap" }}>
-                    {r.e.kind === "request"
-                      ? JSON.stringify({ messages: r.e.messages, toolNames: r.e.toolNames }, null, 2)
-                      : r.e.kind === "tool_call"
-                        ? `args: ${JSON.stringify(r.e.args ?? {}, null, 2)}\n\nresult: ${String(r.e2?.result ?? "(none)")}`
-                        : String(r.e.text ?? r.e.result ?? JSON.stringify(r.e, null, 2))}
-                  </pre>
-                )}
-              </div>
-              <button
-                type="button"
-                aria-label={open.has(r.key) ? "Collapse details" : "Expand details"}
-                aria-expanded={open.has(r.key)}
-                onClick={e => { e.stopPropagation(); setOpen(prev => { const n = new Set(prev); if (n.has(r.key)) n.delete(r.key); else n.add(r.key); return n; }); }}
-                className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full text-[var(--color-foreground-subtlest)] transition-colors duration-200 hover:bg-[var(--color-hover)] hover:text-[var(--color-fg)]"
-              >
-                <ChevronDownIcon size={13} className={cn("transition-transform duration-[var(--duration-fast)]", open.has(r.key) && "rotate-180")} />
-              </button>
-            </div>
-          </div>
-        ))}
+        {view !== "turns" && (() => {
+          const list = view === "calls" ? filtered.filter(r => r.e.kind === "tool_call") : filtered;
+          const seen = new Set<number>();
+          return list.map(r => {
+            const turn = r.e.turn ?? 0;
+            const mark = !seen.has(turn);
+            if (mark) seen.add(turn);
+            return (
+              <Fragment key={r.key}>
+                {mark && <TurnMarker turn={turn} />}
+                {renderRow(r)}
+              </Fragment>
+            );
+          });
+        })()}
 
         {view === "turns" && (() => {
           const map = new Map<number, Row[]>();
-          for (const r of visibleRows) { const t = r.e.turn ?? 0; if (!map.has(t)) map.set(t, []); map.get(t)!.push(r); }
+          for (const r of filtered) { const t = r.e.turn ?? 0; if (!map.has(t)) map.set(t, []); map.get(t)!.push(r); }
           return [...map.entries()].sort((a, b) => b[0] - a[0]).map(([turn, rs]) => (
-            <div key={turn} className="mx-0.5 my-2 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-2.5">
-              <div className="flex flex-wrap items-center gap-2">
-                <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-[var(--color-foreground-subtle)]" />
-                <span className="text-ui-xs font-semibold text-[var(--color-fg)]">Turn {turn}</span>
-                {rs.filter(r => r.e.kind === "response").map((r, i) => (
-                  <span key={i} className="font-mono text-ui-2xs text-[var(--color-foreground-subtlest)]">r{String(r.e.round)} {fmtMs(Number(r.e.totalMs ?? 0))}</span>
-                ))}
-              </div>
-              {rs.filter(r => ["reasoning", "tool_call", "content", "user"].includes(r.e.kind)).map(r => (
-                <div key={r.key} className="mt-1.5">
-                  <button type="button" onClick={() => select(r.key)} className="flex items-baseline gap-2 text-left">
-                    <span className="shrink-0 font-mono text-[9px] font-bold uppercase text-[var(--color-foreground-subtlest)]">{r.badge}</span>
-                    <span className="truncate text-ui-xs text-[var(--color-foreground-subtle)]">{r.text.slice(0, 90)}</span>
-                  </button>
-                </div>
-              ))}
-            </div>
+            <Fragment key={turn}>
+              <TurnMarker turn={turn} />
+              {rs.map(renderRow)}
+            </Fragment>
           ));
         })()}
       </div>
@@ -565,9 +598,7 @@ export function TrajectoryView({ sessionId }: { sessionId: string | null }) {
         return (
           <div className="absolute bottom-9 right-2 top-11 z-[1600] flex w-[min(400px,94%)] flex-col rounded-[var(--radius-lg)] border border-[var(--color-popover-border)] bg-[var(--color-menu)] shadow-[var(--shadow-lg)]">
             <div className="flex items-center gap-2 border-b border-[var(--color-border)] px-3 py-2">
-              <span className="shrink-0 font-mono text-ui-2xs font-bold uppercase tracking-wide text-[var(--color-foreground-subtlest)]">
-                {isTool ? "TOOL" : selRow.badge}
-              </span>
+              <RoleBadge role={isTool ? "TOOL" : selRow.badge} />
               <span className="min-w-0 flex-1 truncate text-ui-xs font-semibold text-[var(--color-fg)]">
                 {isTool ? `${String(selRow.e.name ?? "")} · Turn ${String(selRow.e.turn ?? "")} · Step ${selRow.key}` : `${selRow.badge} Turn ${String(selRow.e.turn ?? "")} · Step ${selRow.key}`}
               </span>

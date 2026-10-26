@@ -1,0 +1,185 @@
+/*
+ * Trajectory event list — the flat, dense chronological log shared by the
+ * duration, turns and calls views, plus the fixed role legend for badges.
+ *
+ * The --color-role-* fills are a legend, not theme tokens: the same role is
+ * the same colour in every theme so a log can be scanned by colour. Each
+ * fill passes AA (>= 4.5:1) against the white badge text.
+ */
+
+.traj {
+  --color-role-system: #4b5563; /* slate — SYSTEM and MODEL */
+  --color-role-user: #2563eb; /* blue — USER */
+  --color-role-context: #047857; /* green — CONTEXT */
+  --color-role-think: #0e7490; /* teal — THINK */
+  --color-role-assistant: #7c3aed; /* violet — ASSISTANT */
+  --color-role-tool: #b45309; /* amber — TOOL */
+  --color-role-on: #ffffff;
+}
+
+/* ---- row ---------------------------------------------------------------- */
+
+.traj-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 4px 4px 4px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-out);
+}
+
+.traj-row:hover {
+  background-color: var(--color-hover);
+}
+
+.traj-row.traj-row-sel,
+.traj-row.traj-row-sel:hover {
+  background-color: var(--color-selected);
+}
+
+/* ---- connector rail and row dot ---------------------------------------- */
+
+.traj-railcell {
+  position: relative;
+  flex: none;
+  align-self: stretch;
+  width: 16px;
+}
+
+.traj-railcell::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 7.5px;
+  width: 1px;
+  background: var(--color-border);
+}
+
+.traj-dot {
+  position: absolute;
+  top: 13px;
+  left: 8px;
+  width: 7px;
+  height: 7px;
+  transform: translate(-50%, -50%);
+  border-radius: 9999px;
+  background: var(--color-foreground-subtlest);
+  transition: background-color var(--duration-fast) var(--ease-out);
+}
+
+.traj-dot-sel {
+  background: var(--color-accent);
+}
+
+/* ---- role badge ---------------------------------------------------------- */
+
+.traj-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  min-width: 58px;
+  margin-top: 2px;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--color-foreground-subtle);
+  color: var(--color-role-on);
+  font-size: var(--text-ui-2xs);
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.traj-badge[data-role="system"],
+.traj-badge[data-role="model"] {
+  background: var(--color-role-system);
+}
+
+.traj-badge[data-role="user"] {
+  background: var(--color-role-user);
+}
+
+.traj-badge[data-role="context"] {
+  background: var(--color-role-context);
+}
+
+.traj-badge[data-role="think"] {
+  background: var(--color-role-think);
+}
+
+.traj-badge[data-role="assistant"] {
+  background: var(--color-role-assistant);
+}
+
+.traj-badge[data-role="tool"] {
+  background: var(--color-role-tool);
+}
+
+/* ---- row content --------------------------------------------------------- */
+
+.traj-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.traj-text {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: var(--color-foreground-subtle);
+  font-size: var(--text-ui-xs);
+  overflow-wrap: anywhere;
+}
+
+.traj-toolline {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-family: var(--font-mono);
+  font-size: var(--text-ui-xs);
+}
+
+.traj-toolname {
+  color: var(--color-fg);
+}
+
+.traj-toolargs,
+.traj-toolresult {
+  color: var(--color-foreground-subtle);
+}
+
+.traj-arrow {
+  color: var(--color-foreground-subtlest);
+}
+
+.traj-unknown {
+  color: var(--color-warning);
+  font-weight: 600;
+}
+
+/* ---- turn boundary marker ------------------------------------------------ */
+
+.traj-turnmark {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 4px 2px 0;
+}
+
+.traj-turnpill {
+  flex: none;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--color-hover);
+  color: var(--color-foreground-subtle);
+  font-size: var(--text-ui-2xs);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}

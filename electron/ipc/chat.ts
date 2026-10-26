@@ -75,11 +75,18 @@ async function runTurn(
   const tools = createTools({ mode: request.mode, allowedPaths: resolveRestrictedAllowedPaths(sid) });
   const effort = request.reasoningEffort || (settings as Settings & { reasoningEffort?: string }).reasoningEffort;
   const turn = readTrace(sid).filter(e => e.kind === "turn_start").length + 1;
+  const systemPrompt = buildSystemPrompt(settings.globalInstructions, session?.customInstructions ?? null);
   logTrace(sid, {
     kind: "turn_start", turn, model: request.model ?? settings.model,
     baseUrl: providerRow?.baseUrl ?? settings.apiBase, mode: request.mode || "full-access",
     effort: effort ?? "", userMessage: opts.promptText,
   });
+  // The system prompt and the user's message are their own rows in the
+  // trajectory, not a field of some other row. They used to live only inside
+  // the request payload, where the system prompt was indistinguishable from a
+  // tool's JSON arguments - the one thing the trajectory exists to tell apart.
+  logTrace(sid, { kind: "system", turn, text: systemPrompt });
+  logTrace(sid, { kind: "user", turn, text: opts.promptText });
   try {
     await getEngine().runTurn({
       sessionId: sid,
@@ -90,7 +97,7 @@ async function runTurn(
       modelId: request.model ?? settings.model,
       modelList: providerRow?.modelList.map(m => m.id) ?? [],
       cwd,
-      systemPrompt: buildSystemPrompt(settings.globalInstructions, session?.customInstructions ?? null),
+      systemPrompt,
       mode: (request.mode as string) || "full-access",
       effort,
       tools,
