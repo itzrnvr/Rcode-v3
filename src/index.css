@@ -3332,19 +3332,12 @@
   white-space: nowrap;
   font-weight: 500;
 }
-.rcode-model-trigger-provider {
-  flex: 0 0 auto;
-  max-width: 78px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--color-foreground-subtle);
-  font-size: var(--text-ui-2xs);
-}
 
 @container rcode-composer (max-width: 900px) {
   .rcode-composer-model-trigger {
-    max-width: 170px;
+    /* Wide enough for a model name on one line. The provider is not in the
+       trigger any more, so the name has the whole box to itself. */
+    max-width: 210px;
   }
 }
 
@@ -3569,11 +3562,8 @@
   }
 }
 @container rcode-composer (max-width: 340px) {
-  /* Provider is the least useful word in the composer once space is tight;
-     the model name is the one that identifies what will run. */
-  .rcode-model-trigger-provider {
-    display: none;
-  }
+  /* The model name is the one that identifies what will run, so it is the
+     last thing to give up its width. */
   .rcode-composer-model-trigger {
     max-width: 116px;
   }

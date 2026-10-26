@@ -455,18 +455,18 @@ export function AgentPromptInput({
                   />
                 }
               >
-                {/* Model trigger: provider, model name, chevron. No icon and no
+                {/* Model trigger: the model name and a chevron. No icon and no
                     chrome around it — ZCode's is a ghost button, and a glyph
                     plus a bordered pill around two words of text was reading as
-                    a third thing competing with the label. The name used to be
-                    omitted entirely, so the control gave no indication of what
-                    it had selected. Provider is a separate span so the composer
-                    can drop it first when the toolbar is tight, keeping the
-                    model name readable longest. */}
+                    a third thing competing with the label.
+
+                    The provider is NOT shown here. It is the same word on
+                    every model of a provider, so in a list of them it was
+                    the one part of the label that said nothing about WHICH
+                    model was selected, and it pushed the name into an
+                    ellipsis. The tooltip carries it instead: hover the
+                    control and it says which provider the model comes from. */}
                 <span className="rcode-model-trigger-label">
-                  <span className="rcode-model-trigger-provider">
-                    {currentModel?.provider}
-                  </span>
                   <span className="rcode-model-trigger-name">
                     {currentModel?.name ?? "Choose model"}
                   </span>

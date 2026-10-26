@@ -402,6 +402,38 @@ test("model picker opens with providers collapsed and expands on click", async (
   ).toBeVisible();
 });
 
+test("the model trigger shows the model, and the provider on hover", async ({ page }, testInfo) => {
+  // On a phone the composer has no room for a model name: the attach, mode,
+  // effort, mic and send controls take everything else, and the name is the
+  // one thing that gives up its width. The full name is in the picker and in
+  // the tooltip there.
+  test.skip(testInfo.project.name === "mobile", "no room for a model name on a phone");
+
+  const trigger = page.locator(".rcode-composer-model-trigger");
+  await expect(trigger).toBeVisible();
+
+  // The provider is the same word on every model of a provider, so in the
+  // trigger it said nothing about WHICH model was selected - and it pushed
+  // the name into an ellipsis. The tooltip carries it instead.
+  await expect(page.locator(".rcode-model-trigger-provider")).toHaveCount(0);
+  const name = page.locator(".rcode-model-trigger-name");
+  await expect(name).toBeVisible();
+
+  const clipped = await name.evaluate(el => el.scrollWidth > el.clientWidth + 1);
+  expect(clipped, "the model name in the trigger is cut off").toBe(false);
+
+  // Hovering says which provider the model comes from.
+  await trigger.hover();
+  const tooltip = page.locator("[data-slot='tooltip-content']").first();
+  await expect(tooltip).toBeVisible();
+  await expect(tooltip).toContainText("/");
+
+  // Move the pointer off the control, or the tooltip stays open over the
+  // composer and swallows the next test's click.
+  await page.mouse.move(0, 0);
+  await expect(tooltip).toBeHidden();
+});
+
 test("the model picker shows the full model names", async ({ page }) => {
   const trigger = page.locator(".rcode-composer-model-trigger");
   await trigger.click();
