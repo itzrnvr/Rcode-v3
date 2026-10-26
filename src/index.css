@@ -3419,7 +3419,12 @@
  * it. Consolidated here so the values are a decision again, and set to match
  * ZCode's picker: one line per row, ui-* type scale, menu surface, shadow-md. */
 .rcode-model-selector {
-  width: min(264px, calc(100vw - 24px));
+  /* The panel is portalled to the body, so it cannot be sized by a container
+     query: --rcode-picker-w is measured from the composer it belongs to.
+     400px is what a model name and its context chip need side by side; in
+     the 320px side panel the measurement brings it back down so it stays
+     inside the panel instead of covering the chat. */
+  width: min(var(--rcode-picker-w, 400px), calc(100vw - 24px));
   border: 1px solid var(--color-popover-border);
   background: var(--color-menu);
   border-radius: var(--radius-lg);
@@ -3664,14 +3669,17 @@
 .rcode-model-item-name {
   flex: 1 1 auto;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  /* The name is the point of the row, so it wraps to a second line rather
+     than disappearing into an ellipsis. The context chip beside it gives up
+     its width first - it is the smaller piece of information. */
+  overflow-wrap: anywhere;
+  line-height: 1.35;
   font-size: var(--text-ui-base);
   color: var(--color-fg);
 }
 .rcode-model-item-meta {
   flex: 0 1 auto;
+  max-width: 84px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

@@ -402,6 +402,54 @@ test("model picker opens with providers collapsed and expands on click", async (
   ).toBeVisible();
 });
 
+test("the model picker shows the full model names", async ({ page }) => {
+  const trigger = page.locator(".rcode-composer-model-trigger");
+  await trigger.click();
+  const picker = page.locator(".rcode-model-selector");
+  await expect(picker).toBeVisible();
+  await page.locator(".rcode-model-provider").first().click();
+  await expect(picker.locator(".rcode-model-item-name").first()).toBeVisible();
+
+  // A model name is the point of the row. It used to be one line with an
+  // ellipsis, so a name like "DeepSeek-V4-Pro-0813" was cut to "DeepSeek-V4
+  // Pro-0..." and the reader could not tell two models apart.
+  const clipped = await page.evaluate(() =>
+    [...document.querySelectorAll(".rcode-model-item-name")]
+      .filter(el => el.scrollWidth > el.clientWidth + 1)
+      .map(el => el.textContent)
+  );
+  expect(clipped, "these model names are cut off").toEqual([]);
+
+  // And the panel stays inside its composer: it is aligned to the trigger, so
+  // a panel wider than the room to the left of the trigger would hang out of
+  // the composer - and, in the side panel, out of the panel.
+  const geometry = await page.evaluate(() => {
+    const panel = document.querySelector(".rcode-model-selector")!.getBoundingClientRect();
+    const trigger = document.querySelector(".rcode-composer-model-trigger")!.getBoundingClientRect();
+    const host = document.querySelector(".rcode-prompt-input")!.getBoundingClientRect();
+    return { panelLeft: panel.left, panelRight: panel.right, hostLeft: host.left, triggerRight: trigger.right };
+  });
+  expect(geometry.panelLeft, "the picker hangs out of the composer").toBeGreaterThanOrEqual(
+    geometry.hostLeft - 1
+  );
+  expect(geometry.panelRight, "the picker hangs out of the composer").toBeLessThanOrEqual(
+    geometry.triggerRight + 1
+  );
+});
+
+test("picking a reasoning effort closes the popup", async ({ page }) => {
+  const trigger = page.locator(".rcode-effort-trigger");
+  await trigger.click();
+  const popup = page.locator(".rcode-effort-popup");
+  await expect(popup).toBeVisible();
+
+  // The choice is made; the popup has nothing left to say. Left open it sat
+  // over the composer with the effort already applied.
+  await page.locator(".rcode-effort-option").first().click();
+  await expect(popup).toHaveCount(0);
+  await expect(trigger).toBeVisible();
+});
+
 test("searching the model picker shows matches without expanding", async ({ page }) => {
   const trigger = page.locator(".rcode-composer-model-trigger");
   await trigger.click();

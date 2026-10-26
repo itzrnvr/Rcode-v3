@@ -42,7 +42,7 @@ import {
   GaugeIcon,
   StarIcon,
 } from "../common/Icons";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 type AgentMode = "plan" | "full-access" | "restricted";
 
@@ -183,7 +183,34 @@ export function AgentPromptInput({
   const [modelOpen, setModelOpen] = useState(false);
   const [mode, setMode] = useState<AgentMode>("full-access");
   const [effort, setEffort] = useState(settings.reasoningEffort || "max");
+  // Controlled, so picking an effort can close the popup. Left uncontrolled
+  // it stayed open over the composer after the choice was made.
+  const [effortOpen, setEffortOpen] = useState(false);
   const [search, setSearch] = useState("");
+  /*
+   * The picker's width.
+   *
+   * It is portalled to the body, so it cannot ask the composer how much room
+   * it has with a container query - the query container is the composer and
+   * the panel is not inside it. Measured instead.
+   *
+   * The budget is the room between the composer's left edge and the
+   * trigger's right edge, because the panel is aligned to the trigger: a
+   * panel wider than that would hang out of the composer, and in the 320px
+   * side panel it would hang out of the PANEL and cover the chat. In the
+   * chat column there is room for the full 400px a model name needs.
+   */
+  const modelTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const [pickerWidth, setPickerWidth] = useState(400);
+  useLayoutEffect(() => {
+    if (!modelOpen) return;
+    const trigger = modelTriggerRef.current;
+    const host = trigger?.closest(".rcode-prompt-input");
+    if (!trigger || !host) return;
+    const budget =
+      trigger.getBoundingClientRect().right - host.getBoundingClientRect().left - 8;
+    setPickerWidth(Math.max(180, Math.min(400, Math.floor(budget))));
+  }, [modelOpen]);
   const [pinnedKeys, setPinnedKeys] = useState<string[]>([]);
   const [openProviders, setOpenProviders] = useState<Set<string>>(new Set());
 
@@ -376,7 +403,7 @@ export function AgentPromptInput({
               model list. Buried above the groups it competed with the model
               names for attention and split the panel into two jobs; ZCode
               keeps it separate for the same reason. */}
-          <Popover>
+          <Popover open={effortOpen} onOpenChange={setEffortOpen}>
             <PopoverTrigger
               render={<PromptInputButton className="rcode-effort-trigger" />}
             >
@@ -401,6 +428,8 @@ export function AgentPromptInput({
                   onClick={() => {
                     setEffort(value);
                     setSetting("reasoningEffort", value);
+                    // The choice is made; the popup has nothing left to say.
+                    setEffortOpen(false);
                   }}
                 >
                   <span>
@@ -414,6 +443,7 @@ export function AgentPromptInput({
 
             <Popover open={modelOpen} onOpenChange={setModelOpen}>
               <PopoverTrigger
+                ref={modelTriggerRef}
                 render={
                   <PromptInputButton
                     className="rcode-composer-model-trigger"
@@ -449,6 +479,7 @@ export function AgentPromptInput({
               <PopoverContent
                 align="end"
                 className="rcode-model-selector"
+                style={{ "--rcode-picker-w": `${pickerWidth}px` } as React.CSSProperties}
                 side="bottom"
                 sideOffset={8}
               >
