@@ -9,7 +9,7 @@
  *    select that filters the event list + shows a range chip.
  *  - Escape resets zoom + selection. Tiny drags clear the brush.
  *  - click a bar/row = focus select: dashed accent line across lanes, filled
- *    bullet, row scroll-into-view, inspector (Summary/Preview/Raw).
+ *    bullet, row scroll-into-view. Clicking a row expands it in place.
  *
  * Presentation: the event list is a flat, dense, chronological log in the
  * DeepSeek-harness style — a thin connector rail with a dot per row on the
@@ -24,7 +24,7 @@
  * Data: JSONL trace via trace:list IPC, auto-refresh 3s.
  */
 
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../../api/client";
 import {
   RefreshIcon,
@@ -79,6 +79,11 @@ function TurnMarker({ turn }: { turn: number }) {
   );
 }
 
+/** Tool arguments arrive as a JSON string or as an object; normalise once. */
+function argsOf(entry: TraceEntry): string {
+  return typeof entry.args === "string" ? entry.args : JSON.stringify(entry.args ?? {});
+}
+
 function fmtMs(ms: number): string {
   if (ms < 1000) return `${Math.round(ms)}ms`;
   const s = ms / 1000;
@@ -131,13 +136,81 @@ const chip =
   "flex shrink-0 items-center gap-1.5 rounded-full px-2.5 text-ui-xs font-semibold text-[var(--color-foreground-subtle)] transition-colors duration-200 hover:bg-[var(--color-hover)] hover:text-[var(--color-fg)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--color-accent)]";
 const chipActive = "bg-[var(--color-selected)] text-[var(--color-fg)] hover:bg-[var(--color-selected)] hover:text-[var(--color-fg)]";
 
+/**
+ * The detail a row opens.
+ *
+ * These used to live in a floating inspector that popped over the list when
+ * a row was clicked: a second surface with Summary / Preview / Raw tabs to
+ * learn, covering the very rows it was describing. The details belong to
+ * the row - click the row and the row opens.
+ */
+function RowDetail({ row }: { row: Row }) {
+  const e = row.e;
+  const facts: Array<[string, string]> = [];
+  let payload = "";
+
+  switch (e.kind) {
+    case "tool_call":
+      facts.push(["Tool", String(e.name ?? "")]);
+      facts.push(["Status", row.e2 ? "Completed" : "Unknown"]);
+      facts.push(["Duration", row.e2?.ms != null ? `${row.e2.ms}ms` : "—"]);
+      payload = `args: ${argsOf(e)}\n\nresult: ${String(row.e2?.result ?? "(none)")}`;
+      break;
+    case "response": {
+      const u = readUsage(e.usage);
+      facts.push(["Status", String(e.status ?? "—") === "ok" ? "Completed" : String(e.status ?? "—")]);
+      facts.push(["TTFT", `${(Number(e.firstChunkMs ?? 0) / 1000).toFixed(2)}s`]);
+      facts.push(["Total", `${(Number(e.totalMs ?? 0) / 1000).toFixed(1)}s`]);
+      if (u) facts.push(["Tokens", `${fmtTok(u.prompt)} in · ${fmtTok(u.completion)} out`]);
+      payload = JSON.stringify(e, null, 2);
+      break;
+    }
+    case "request":
+      facts.push(["Messages", String((e.messages as unknown[])?.length ?? 0)]);
+      facts.push(["Tools", String((e.toolNames as string[])?.length ?? 0)]);
+      payload = JSON.stringify({ messages: e.messages, toolNames: e.toolNames }, null, 2);
+      break;
+    case "turn_start":
+      facts.push(["Model", String(e.model ?? "—")]);
+      facts.push(["Mode", String(e.mode ?? "—")]);
+      facts.push(["Effort", String(e.effort ?? "—")]);
+      payload = JSON.stringify(e, null, 2);
+      break;
+    case "turn_end":
+      facts.push(["Duration", `${e.secs ?? 0}s`]);
+      if (e.error) facts.push(["Error", String(e.error)]);
+      payload = JSON.stringify(e, null, 2);
+      break;
+    default: {
+      const text = String(e.text ?? "");
+      facts.push(["Characters", String(text.length)]);
+      payload = text || JSON.stringify(e, null, 2);
+    }
+  }
+
+  return (
+    <div className="traj-detail">
+      {facts.length > 0 && (
+        <div className="traj-facts">
+          {facts.map(([key, value]) => (
+            <span key={key} className="traj-fact">
+              <span className="traj-fact-key">{key}</span>
+              <span className="traj-fact-value">{value}</span>
+            </span>
+          ))}
+        </div>
+      )}
+      {payload && <pre className="traj-payload">{payload}</pre>}
+    </div>
+  );
+}
+
 export function TrajectoryView({ sessionId, mockEntries }: { sessionId: string | null; mockEntries?: TraceEntry[] }) {
   const [entries, setEntries] = useState<TraceEntry[]>([]);
   const [view, setView] = useState<"duration" | "turns" | "calls">("duration");
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState<Set<number>>(new Set());
   const [selKey, setSelKey] = useState<number | null>(null);
-  const [selTab, setSelTab] = useState<"summary" | "preview" | "raw">("summary");
   const [reload, setReload] = useState(0);
   const [viewport, setViewport] = useState<{ start: number; end: number } | null>(null);
   const [range, setRange] = useState<{ a: number; b: number } | null>(null);
@@ -199,7 +272,7 @@ export function TrajectoryView({ sessionId, mockEntries }: { sessionId: string |
           e2 = res;
           outcomeUnknown = !res;
           // args may arrive as a JSON string or an object; normalise once.
-          const args = typeof e.args === "string" ? e.args : JSON.stringify(e.args ?? {});
+          const args = argsOf(e);
           const result = res ? String(res.result ?? "").replace(/\n/g, " ") : "";
           argsText = args.slice(0, 160);
           resultText = result.slice(0, 120);
@@ -348,9 +421,18 @@ export function TrajectoryView({ sessionId, mockEntries }: { sessionId: string |
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, selRow, entries, domain.start, domain.end]);
 
+  // A row opens and closes where it stands.
+  const toggleOpen = useCallback((key: number) => {
+    setOpen(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }, []);
+
   const select = (key: number, fromTimeline = false) => {
     setSelKey(key);
-    setSelTab("summary");
     if (fromTimeline) {
       requestAnimationFrame(() => {
         listRef.current?.querySelector(`[data-rowkey="${key}"]`)?.scrollIntoView({ block: "nearest", behavior: "smooth" });
@@ -373,7 +455,10 @@ export function TrajectoryView({ sessionId, mockEntries }: { sessionId: string |
     <div
       key={r.key}
       data-rowkey={r.key}
-      onClick={() => select(r.key)}
+      onClick={() => {
+        setSelKey(r.key);
+        toggleOpen(r.key);
+      }}
       className={cn("traj-row", selKey === r.key && "traj-row-sel")}
     >
       <span aria-hidden className="traj-railcell">
@@ -399,21 +484,13 @@ export function TrajectoryView({ sessionId, mockEntries }: { sessionId: string |
         ) : (
           <span className="traj-text">{r.text}</span>
         )}
-        {open.has(r.key) && (
-          <pre className="tool-result" style={{ maxHeight: 220, margin: "6px 0 4px", whiteSpace: "pre-wrap" }}>
-            {r.e.kind === "request"
-              ? JSON.stringify({ messages: r.e.messages, toolNames: r.e.toolNames }, null, 2)
-              : r.e.kind === "tool_call"
-                ? `args: ${JSON.stringify(r.e.args ?? {}, null, 2)}\n\nresult: ${String(r.e2?.result ?? "(none)")}`
-                : String(r.e.text ?? r.e.result ?? JSON.stringify(r.e, null, 2))}
-          </pre>
-        )}
+        {open.has(r.key) && <RowDetail row={r} />}
       </div>
       <button
         type="button"
         aria-label={open.has(r.key) ? "Collapse details" : "Expand details"}
         aria-expanded={open.has(r.key)}
-        onClick={e => { e.stopPropagation(); setOpen(prev => { const n = new Set(prev); if (n.has(r.key)) n.delete(r.key); else n.add(r.key); return n; }); }}
+        onClick={e => { e.stopPropagation(); toggleOpen(r.key); }}
         className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full text-[var(--color-foreground-subtlest)] transition-colors duration-[var(--duration-fast)] hover:bg-[var(--color-hover)] hover:text-[var(--color-fg)]"
       >
         <ChevronDownIcon size={13} className={cn("transition-transform duration-[var(--duration-fast)]", open.has(r.key) && "rotate-180")} />
@@ -588,103 +665,6 @@ export function TrajectoryView({ sessionId, mockEntries }: { sessionId: string |
           ));
         })()}
       </div>
-
-      {/* Inspector — dsh style */}
-      {selRow && (() => {
-        const isTool = selRow.e.kind === "tool_call";
-        const roundEntries = entries.filter(e => isTool
-          ? (e.kind === "tool_call" || e.kind === "tool_result") && e.round === selRow.e.round && e.name === selRow.e.name
-          : (e.round === selRow.e.round && ["request", "response", "reasoning", "content", "tool_call"].includes(e.kind)));
-        const req = roundEntries.find(e => e.kind === "request");
-        const resp = roundEntries.find(e => e.kind === "response");
-        const think = roundEntries.filter(e => e.kind === "reasoning").map(e => String(e.text ?? "")).join("\n");
-        const contents = roundEntries.filter(e => e.kind === "content").map(e => String(e.text ?? "")).join("\n");
-        const tools = roundEntries.filter(e => e.kind === "tool_call");
-        const u = readUsage(resp?.usage);
-        const total = Number(resp?.totalMs ?? 0);
-        const ttft = Number(resp?.firstChunkMs ?? 0);
-        return (
-          <div className="absolute bottom-9 right-2 top-11 z-[1600] flex w-[min(400px,94%)] flex-col rounded-[var(--radius-lg)] border border-[var(--color-popover-border)] bg-[var(--color-menu)] shadow-[var(--shadow-lg)]">
-            <div className="flex items-center gap-2 border-b border-[var(--color-border)] px-3 py-2">
-              <RoleBadge role={isTool ? "TOOL" : selRow.badge} />
-              <span className="min-w-0 flex-1 truncate text-ui-xs font-semibold text-[var(--color-fg)]">
-                {isTool ? `${String(selRow.e.name ?? "")} · Turn ${String(selRow.e.turn ?? "")} · Step ${selRow.key}` : `${selRow.badge} Turn ${String(selRow.e.turn ?? "")} · Step ${selRow.key}`}
-              </span>
-              <button
-                type="button"
-                aria-label="Close inspector"
-                onClick={() => setSelKey(null)}
-                className="sp-iconbtn"
-              >
-                <XIcon size={13} />
-              </button>
-            </div>
-            <div className="flex gap-3.5 border-b border-[var(--color-border)] px-3 py-1.5">
-              {(["summary", "preview", "raw"] as const).map(tb => (
-                <button
-                  key={tb}
-                  type="button"
-                  onClick={() => setSelTab(tb)}
-                  className={cn(
-                    "border-b-2 pb-0.5 text-ui-xs font-semibold capitalize transition-colors duration-200",
-                    selTab === tb
-                      ? "border-[var(--color-fg)] text-[var(--color-fg)]"
-                      : "border-transparent text-[var(--color-foreground-subtlest)] hover:text-[var(--color-fg)]",
-                  )}
-                >
-                  {tb}
-                </button>
-              ))}
-            </div>
-            <div className="min-h-0 flex-1 overflow-y-auto p-3">
-              {selTab === "summary" && (
-                <div className="flex flex-col gap-1.5 text-ui-xs">
-                  {!isTool && (
-                    <>
-                      <div className="flex justify-between gap-3"><span className="text-[var(--color-foreground-subtlest)]">Source</span><span className="text-[var(--color-fg)]">Request #{String(selRow.e.round ?? 0)}</span></div>
-                      <div className="flex justify-between gap-3"><span className="text-[var(--color-foreground-subtlest)]">Status</span><span className="text-[var(--color-fg)]">{String(resp?.status ?? "—") === "ok" ? "Completed" : String(resp?.status ?? "—")}</span></div>
-                      <div className="flex justify-between gap-3"><span className="text-[var(--color-foreground-subtlest)]">Tokens</span><span className="font-mono tabular-nums text-[var(--color-fg)]">{u ? fmtTok(u.completion) : "—"}</span></div>
-                      <div className="flex justify-between gap-3 pl-3.5"><span className="text-[var(--color-foreground-subtlest)]">Reasoning</span><span className="font-mono tabular-nums text-[var(--color-fg)]">{fmtTok(u?.reasoning ?? 0)}</span></div>
-                      <div className="flex justify-between gap-3 pl-3.5"><span className="text-[var(--color-foreground-subtlest)]">Content</span><span className="font-mono tabular-nums text-[var(--color-fg)]">{u ? fmtTok(u.completion - u.reasoning) : "—"}</span></div>
-                      <div className="mt-2 font-mono text-ui-2xs font-bold uppercase tracking-wide text-[var(--color-foreground-subtlest)]">Request timing</div>
-                      <div className="flex justify-between gap-3"><span className="text-[var(--color-foreground-subtlest)]">Started</span><span className="font-mono text-[var(--color-fg)]">{req?.ts ? new Date(String(req.ts)).toLocaleTimeString() : "—"}</span></div>
-                      <div className="flex justify-between gap-3"><span className="text-[var(--color-foreground-subtlest)]">Total duration</span><span className="font-mono tabular-nums text-[var(--color-fg)]">{(total / 1000).toFixed(1)}s</span></div>
-                      <div className="flex justify-between gap-3"><span className="text-[var(--color-foreground-subtlest)]">TTFT</span><span className="font-mono tabular-nums text-[var(--color-fg)]">{(ttft / 1000).toFixed(2)}s</span></div>
-                      <div className="flex justify-between gap-3"><span className="text-[var(--color-foreground-subtlest)]">Generation</span><span className="font-mono tabular-nums text-[var(--color-fg)]">{((total - ttft) / 1000).toFixed(1)}s</span></div>
-                    </>
-                  )}
-                  {isTool && (
-                    <>
-                      <div className="flex justify-between gap-3"><span className="text-[var(--color-foreground-subtlest)]">Tool</span><span className="font-mono text-[var(--color-fg)]">{String(selRow.e.name ?? "")}</span></div>
-                      <div className="flex justify-between gap-3"><span className="text-[var(--color-foreground-subtlest)]">Status</span><span className={cn("text-[var(--color-fg)]", !selRow.e2 && "text-[var(--color-warning)]")}>{selRow.e2 ? "Completed" : "Unknown"}</span></div>
-                      <div className="flex justify-between gap-3"><span className="text-[var(--color-foreground-subtlest)]">Duration</span><span className="font-mono tabular-nums text-[var(--color-fg)]">{selRow.e2?.ms != null ? `${selRow.e2.ms}ms` : "—"}</span></div>
-                    </>
-                  )}
-                </div>
-              )}
-              {selTab === "preview" && (
-                <div className="flex flex-col gap-2 text-ui-xs">
-                  {isTool ? (
-                    <>
-                      <div className="font-mono text-ui-2xs font-bold uppercase tracking-wide text-[var(--color-foreground-subtlest)]">Args</div>
-                      <pre className="tool-result" style={{ maxHeight: 140 }}>{JSON.stringify(selRow.e.args ?? {}, null, 2)}</pre>
-                      <div className="font-mono text-ui-2xs font-bold uppercase tracking-wide text-[var(--color-foreground-subtlest)]">Result</div>
-                      <pre className="tool-result" style={{ maxHeight: 200 }}>{String(selRow.e2?.result ?? "(none)")}</pre>
-                    </>
-                  ) : (
-                    <>
-                      {think && (<><div className="font-mono text-ui-2xs font-bold uppercase tracking-wide text-[var(--color-foreground-subtlest)]">Thinking</div><pre className="tool-result" style={{ maxHeight: 180 }}>{think}</pre></>)}
-                      {contents && (<><div className="font-mono text-ui-2xs font-bold uppercase tracking-wide text-[var(--color-foreground-subtlest)]">Content</div><pre className="tool-result" style={{ maxHeight: 180 }}>{contents}</pre></>)}
-                      {tools.length > 0 && (<><div className="font-mono text-ui-2xs font-bold uppercase tracking-wide text-[var(--color-foreground-subtlest)]">Tool calls</div>{tools.map((tl, i) => <pre key={i} className="tool-result" style={{ maxHeight: 100 }}>{String(tl.name ?? "")} {String(tl.args ?? "")}</pre>)}</>)}
-                    </>
-                  )}
-                </div>
-              )}
-              {selTab === "raw" && <pre className="tool-result" style={{ maxHeight: "100%" }}>{JSON.stringify(roundEntries, null, 2)}</pre>}
-            </div>
-          </div>
-        );
-      })()}
 
       {/* Footer stats — dsh format */}
       <div className="flex flex-wrap gap-x-2.5 gap-y-1 border-t border-[var(--color-border)] px-2.5 py-1.5 font-mono text-ui-2xs text-[var(--color-foreground-subtlest)]">

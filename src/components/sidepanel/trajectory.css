@@ -183,3 +183,58 @@
   letter-spacing: 0.05em;
   white-space: nowrap;
 }
+
+/* ---- expanded row -------------------------------------------------------- */
+
+/*
+ * The detail block a row opens. It belongs to the row: clicking a row used
+ * to pop a floating inspector over the list, which covered the very rows it
+ * was describing and was a second surface to learn.
+ */
+.traj-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 6px 0 4px;
+  padding: 8px 10px;
+  border-left: 2px solid var(--color-border);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: color-mix(in srgb, var(--color-bg) 60%, transparent);
+}
+
+.traj-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: var(--text-ui-2xs);
+}
+
+.traj-fact {
+  display: flex;
+  gap: 5px;
+  min-width: 0;
+}
+
+.traj-fact-key {
+  color: var(--color-foreground-subtlest);
+  white-space: nowrap;
+}
+
+.traj-fact-value {
+  color: var(--color-fg);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.traj-payload {
+  max-height: 260px;
+  margin: 0;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: var(--font-mono);
+  font-size: var(--text-ui-2xs);
+  line-height: 1.5;
+  color: var(--color-foreground-subtle);
+}
