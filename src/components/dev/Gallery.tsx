@@ -55,6 +55,7 @@ import {
   TraceTitle,
 } from "@/components/ui/trace";
 import { AgentTrace } from "@/components/chat/AgentTrace";
+import { TrajectoryView } from "@/components/sidepanel/TrajectoryView";
 import AppShellPreview from "@/components/dev/AppShellPreview";
 import type { AgentTurn, LiveStep } from "@/types";
 import { ButtonGroup, ButtonGroupSeparator, ButtonGroupText } from "@/components/ui/button-group";
@@ -964,6 +965,16 @@ function Components() {
       </Spec>
 
       <Spec
+        id="trajectory"
+        title="Trajectory"
+        note="The developer view of a turn: every event the agent produced, in order, with the kind of event as a colour rather than a word to read. SYSTEM is the turn's facts and the system prompt, USER is what was asked, CONTEXT is the request that went out, THINK is the model's reasoning, MODEL is a round's timing, ASSISTANT is the answer and TOOL is a call with its result. The palette is fixed - a legend that changed colour with the accent would be a legend you could not trust - and the colours are picked for contrast against their white label."
+      >
+        <div className="flex h-[560px] flex-col">
+          <TrajectoryView sessionId={null} mockEntries={MOCK_TRACE} />
+        </div>
+      </Spec>
+
+      <Spec
         id="overlays"
         title="Overlays"
         note="Menus, popovers, hover cards, tooltips and dialogs. All five share bg-menu, the popover border step and shadow-md — a single elevation level for everything that floats."
@@ -1196,6 +1207,7 @@ const NAV = [
   ["card", "Card"],
   ["disclosure", "Disclosure"],
   ["trace", "Trace"],
+  ["trajectory", "Trajectory"],
   ["overlays", "Overlays"],
   ["select", "Select"],
   ["command", "Command"],
@@ -1205,6 +1217,32 @@ const NAV = [
   ["separator", "Separator"],
   ["shell", "App shell"],
 ] as const;
+
+/* --- mock trace ----------------------------------------------------------
+ *
+ * The trajectory viewer reads a real trace over IPC, which a gallery has no
+ * business asking for. These entries are the same shape, so the view renders
+ * exactly what it renders in the side panel - the role badges, the connector
+ * rail, the tool rows - without a backend.
+ */
+const TRACE_BASE = Date.parse("2026-10-26T09:12:00.000Z");
+const traceAt = (ms: number) => new Date(TRACE_BASE + ms).toISOString();
+
+const MOCK_TRACE = [
+  { ts: traceAt(0), kind: "turn_start", turn: 1, model: "zai-org/GLM-5.2", mode: "full-access", effort: "max", baseUrl: "http://127.0.0.1:3478/v1" },
+  { ts: traceAt(4), kind: "system", turn: 1, text: "You are Rcode, a helpful coding assistant. You provide clear, accurate, and concise answers." },
+  { ts: traceAt(8), kind: "user", turn: 1, text: "Use the list_dir tool to list the files in the repository root, then tell me how many there are." },
+  { ts: traceAt(12), kind: "request", turn: 1, round: 1, messages: [{ role: "system" }, { role: "user" }], toolNames: ["read_file", "list_dir", "grep", "shell"] },
+  { ts: traceAt(640), kind: "reasoning", turn: 1, round: 1, text: "The user wants a listing of the repository root. list_dir is the tool for that - no need to shell out." },
+  { ts: traceAt(1180), kind: "response", turn: 1, round: 1, status: "ok", firstChunkMs: 612, totalMs: 1640, chunks: 118 },
+  { ts: traceAt(1200), kind: "tool_call", turn: 1, round: 1, name: "list_dir", args: JSON.stringify({ path: "." }) },
+  { ts: traceAt(1620), kind: "tool_result", turn: 1, round: 1, name: "list_dir", ms: 420, result: "assets/\nelectron/\nsrc/\ntests/\nDESIGN.md\npackage.json" },
+  { ts: traceAt(1700), kind: "request", turn: 1, round: 2, messages: [{ role: "system" }, { role: "user" }, { role: "assistant" }, { role: "tool" }], toolNames: ["read_file", "list_dir", "grep", "shell"] },
+  { ts: traceAt(2100), kind: "reasoning", turn: 1, round: 2, text: "Five entries came back - three directories and two files. Let me count them again to be sure." },
+  { ts: traceAt(2700), kind: "response", turn: 1, round: 2, status: "ok", firstChunkMs: 488, totalMs: 1210, chunks: 74 },
+  { ts: traceAt(2720), kind: "content", turn: 1, round: "final", text: "There are 5 entries in the repository root: 3 directories (assets, electron, src, tests) and 2 files (DESIGN.md, package.json)." },
+  { ts: traceAt(3900), kind: "turn_end", turn: 1, secs: 4 },
+];
 
 export default function Gallery() {
   const [copied, setCopied] = useState<string | null>(null);

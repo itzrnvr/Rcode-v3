@@ -131,7 +131,7 @@ const chip =
   "flex shrink-0 items-center gap-1.5 rounded-full px-2.5 text-ui-xs font-semibold text-[var(--color-foreground-subtle)] transition-colors duration-200 hover:bg-[var(--color-hover)] hover:text-[var(--color-fg)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--color-accent)]";
 const chipActive = "bg-[var(--color-selected)] text-[var(--color-fg)] hover:bg-[var(--color-selected)] hover:text-[var(--color-fg)]";
 
-export function TrajectoryView({ sessionId }: { sessionId: string | null }) {
+export function TrajectoryView({ sessionId, mockEntries }: { sessionId: string | null; mockEntries?: TraceEntry[] }) {
   const [entries, setEntries] = useState<TraceEntry[]>([]);
   const [view, setView] = useState<"duration" | "turns" | "calls">("duration");
   const [query, setQuery] = useState("");
@@ -148,6 +148,12 @@ export function TrajectoryView({ sessionId }: { sessionId: string | null }) {
   const trackRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // The gallery renders this with a mock trace, so the component has to work
+    // with no backend and no Electron bridge.
+    if (mockEntries) {
+      setEntries(mockEntries);
+      return;
+    }
     if (!sessionId) return;
     let cancelled = false;
     const load = async () => {
@@ -159,7 +165,7 @@ export function TrajectoryView({ sessionId }: { sessionId: string | null }) {
     load();
     const id = setInterval(load, 3000);
     return () => { cancelled = true; clearInterval(id); };
-  }, [sessionId, reload]);
+  }, [sessionId, reload, mockEntries]);
 
   const rows = useMemo<Row[]>(() => {
     const out: Row[] = [];
@@ -415,7 +421,9 @@ export function TrajectoryView({ sessionId }: { sessionId: string | null }) {
     </div>
   );
 
-  if (!sessionId) return <div className="p-5 text-ui-xs text-[var(--color-foreground-subtlest)]">Open a session to see its trajectory.</div>;
+  // The gallery renders this with a mock trace and no session, so the guard is
+  // on the session only when there is nothing to show instead.
+  if (!sessionId && !mockEntries) return <div className="p-5 text-ui-xs text-[var(--color-foreground-subtlest)]">Open a session to see its trajectory.</div>;
 
   const activeRange = draft ? { a: Math.min(draft.a, draft.b), b: Math.max(draft.a, draft.b) } : range;
 

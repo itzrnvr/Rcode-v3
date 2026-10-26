@@ -194,6 +194,33 @@ hover — and the vendored components rely on that. The *brand* colour is
 `text-brand` / `bg-brand`. Two rules claiming `text-accent` and `bg-accent`
 made every dropdown item and menu row hover brand-blue.
 
+### The role palette
+
+The trajectory log is the one place in the product where colour carries
+meaning rather than decoration. It is a legend of event kinds, and the
+reader scans it by colour instead of reading every word:
+
+| Role | Token | Means |
+| --- | --- | --- |
+| SYSTEM | `--color-role-system` | the turn's facts, the system prompt |
+| USER | `--color-role-user` | what was asked |
+| CONTEXT | `--color-role-context` | the request that went out |
+| THINK | `--color-role-think` | the model's reasoning |
+| ASSISTANT | `--color-role-assistant` | the answer |
+| TOOL | `--color-role-tool` | a tool call and its result |
+
+Two rules that are not negotiable:
+
+- **The palette is fixed.** It does not follow the theme's accent, because a
+  legend that changes colour is a legend you cannot trust.
+- **Every colour passes contrast against its white label.** The badge text is
+  white on the fill, so the fill has to carry it — not the background behind
+  the badge.
+
+This is a scoped exception to the monochrome rule that governs the rest of
+the product, and it is scoped to a developer surface, not to the app's own
+UI.
+
 ### Themes
 
 Rcode ships two languages, and each is a full set — palette, radius ladder,
